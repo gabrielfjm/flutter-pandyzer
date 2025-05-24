@@ -1,0 +1,22 @@
+class AppSizes {
+  static const double s50 = 50;
+  static const double s100 = 100;
+  static const double s150 = 150;
+  static const double s200 = 200;
+  static const double s250 = 250;
+  static const double s300 = 300;
+  static const double s350 = 350;
+  static const double s400 = 400;
+  static const double s450 = 450;
+  static const double s500 = 500;
+  static const double s550 = 550;
+  static const double s600 = 600;
+  static const double s650 = 650;
+  static const double s700 = 700;
+  static const double s750 = 750;
+  static const double s800 = 800;
+  static const double s850 = 850;
+  static const double s900 = 900;
+  static const double s950 = 950;
+  static const double s1000 = 1000;
+}
