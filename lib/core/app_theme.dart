@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_pandyzer/core/app_colors.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   static ThemeData get lightTheme {
@@ -6,19 +8,15 @@ class AppTheme {
       brightness: Brightness.light,
       scaffoldBackgroundColor: Colors.white,
       colorScheme: const ColorScheme.light(
-        primary: Colors.black,
-        secondary: Colors.grey,
+        primary: AppColors.black,
+        secondary: AppColors.grey,
       ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: AppColors.white,
+        foregroundColor: AppColors.black,
         elevation: 0,
       ),
-      textTheme: const TextTheme(
-        bodyLarge: TextStyle(color: Colors.black),
-        bodyMedium: TextStyle(color: Colors.black87),
-        titleLarge: TextStyle(color: Colors.black, fontSize: 20, fontWeight: FontWeight.bold),
-      ),
+      textTheme: GoogleFonts.oswaldTextTheme(),
       iconTheme: const IconThemeData(color: Colors.black),
     );
   }
@@ -36,11 +34,7 @@ class AppTheme {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      textTheme: const TextTheme(
-        bodyLarge: TextStyle(color: Colors.white),
-        bodyMedium: TextStyle(color: Colors.white70),
-        titleLarge: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
-      ),
+      textTheme: GoogleFonts.oswaldTextTheme(),
       iconTheme: const IconThemeData(color: Colors.white),
     );
   }

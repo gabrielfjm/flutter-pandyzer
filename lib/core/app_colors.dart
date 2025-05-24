@@ -4,9 +4,11 @@ class AppColors {
   // Primárias
   static const Color primary = Colors.black;
   static const Color secondary = Colors.white;
+  static const Color transparent = Colors.transparent;
 
   // Cores
   static const Color black = Colors.black;
+  static const Color black87 = Colors.black87;
   static const Color white = Colors.white;
   static const Color grey = Colors.grey;
 

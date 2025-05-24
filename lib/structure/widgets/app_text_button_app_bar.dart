@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_pandyzer/core/app_font_size.dart';
+import 'package:flutter_pandyzer/core/app_spacing.dart';
 
 class AppTextButtonAppBar extends StatelessWidget {
   final String text;
@@ -6,16 +8,16 @@ class AppTextButtonAppBar extends StatelessWidget {
   final Color? textColor;
   final double fontSize;
   final double minWidth;
-  final EdgeInsetsGeometry padding;
+  final double padding;
 
   const AppTextButtonAppBar({
     super.key,
     required this.text,
     required this.onPressed,
     this.textColor,
-    this.fontSize = 16,
+    this.fontSize = AppFontSize.fs17,
     this.minWidth = 80,
-    this.padding = EdgeInsets.zero,
+    this.padding = AppSpacing.big,
   });
 
   @override
@@ -25,7 +27,7 @@ class AppTextButtonAppBar extends StatelessWidget {
       child: TextButton(
         onPressed: onPressed,
         style: TextButton.styleFrom(
-          padding: padding,
+          padding: EdgeInsets.all(padding),
           minimumSize: Size(minWidth, kToolbarHeight),
           shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.zero,
