@@ -28,8 +28,23 @@ class AppBarCustom extends StatelessWidget implements PreferredSizeWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(children: leading),
-            Row(children: actions),
+            Row(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(left: 10, right: 15.0),
+                  child: Image.asset(
+                    'assets/images/logo_app_bar.png',
+                    width: 50,
+                    height: kToolbarHeight-10,
+                    fit: BoxFit.fill,
+                  ),
+                ),
+                ...leading,
+              ],
+            ),
+            Row(
+              children: actions,
+            ),
           ],
         ),
       ),
