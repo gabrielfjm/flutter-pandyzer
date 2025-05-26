@@ -3,6 +3,7 @@ import 'package:flutter_pandyzer/core/app_colors.dart';
 import 'package:flutter_pandyzer/core/app_icons.dart';
 import 'package:flutter_pandyzer/core/app_spacing.dart';
 import 'package:flutter_pandyzer/core/app_strings.dart';
+import 'package:flutter_pandyzer/core/navigation_manager.dart';
 import 'package:flutter_pandyzer/structure/pages/avaliacoes/avaliacoes_page.dart';
 import 'package:flutter_pandyzer/structure/pages/perfil/perfil_page.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_bar_custom.dart';
@@ -26,6 +27,12 @@ class _MainPageState extends State<MainPage> {
     setState(() {
       _bodyContent = page;
     });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    NavigationManager().registerNavigation(_navigateTo);
   }
 
   @override

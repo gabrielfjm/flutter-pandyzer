@@ -22,4 +22,5 @@ class AppIcons {
   static const IconData edit = Icons.edit;
   static const IconData delete = Icons.delete;
   static const IconData logout = Icons.logout;
+  static const IconData view = Icons.remove_red_eye;
 }

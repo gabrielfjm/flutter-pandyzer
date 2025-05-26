@@ -1,3 +1,5 @@
+import 'package:flutter_pandyzer/structure/http/models/Evaluation.dart';
+
 abstract class AvaliacoesState {}
 
 class AvaliacoesInitial extends AvaliacoesState {}
@@ -5,7 +7,7 @@ class AvaliacoesInitial extends AvaliacoesState {}
 class AvaliacoesLoading extends AvaliacoesState {}
 
 class AvaliacoesLoaded extends AvaliacoesState {
-  final List<String> avaliacoes;
+  final List<Evaluation> avaliacoes;
 
   AvaliacoesLoaded(this.avaliacoes);
 }

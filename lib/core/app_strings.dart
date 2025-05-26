@@ -6,10 +6,10 @@ class AppStrings {
   // (adicione aqui)
 
   // ================== C ==================
-  // (adicione aqui)
+  static const String cadastrarAvaliacao = 'Cadastrar Avaliação';
 
   // ================== D ==================
-  // (adicione aqui)
+  static const String descricaoDaAvaliacao = 'Descrição da Avaliação';
 
   // ================== E ==================
   // (adicione aqui)
@@ -22,6 +22,7 @@ class AppStrings {
 
   // ================== H ==================
   static const String home = 'Home';
+  static const String hifen = '-';
 
   // ================== I ==================
   // (adicione aqui)
@@ -39,7 +40,7 @@ class AppStrings {
   // (adicione aqui)
 
   // ================== N ==================
-  // (adicione aqui)
+  static const String nomeDoUsuario = 'Nome do Usuário';
 
   // ================== O ==================
   // (adicione aqui)
