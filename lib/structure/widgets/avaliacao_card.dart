@@ -12,11 +12,15 @@ import 'package:flutter_pandyzer/structure/widgets/app_text.dart';
 class AvaliacaoCard extends StatelessWidget {
   final Evaluation evaluation;
   final VoidCallback onView;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   const AvaliacaoCard({
     super.key,
     required this.evaluation,
     required this.onView,
+    required this.onEdit,
+    required this.onDelete,
   });
 
   @override
@@ -69,9 +73,28 @@ class AvaliacaoCard extends StatelessWidget {
                   ),
                 ],
               ),
-              IconButton(
-                icon: const Icon(AppIcons.view, color: AppColors.white),
-                onPressed: onView,
+              Row(
+                children: [
+                  appText(
+                    //text: evaluation.status?.description ?? AppStrings.status,
+                    text: 'Qtd. Avaliações: 0',
+                    fontSize: AppFontSize.fs14,
+                    color: AppColors.white,
+                  ),
+                  const SizedBox(width: AppSizes.s10),
+                  IconButton(
+                    icon: Icon(AppIcons.view, color: AppColors.white),
+                    onPressed: onView,
+                  ),
+                  IconButton(
+                    icon: Icon(AppIcons.edit, color: AppColors.white),
+                    onPressed: onEdit,
+                  ),
+                  IconButton(
+                    icon: Icon(AppIcons.delete, color: AppColors.red300),
+                    onPressed: onDelete,
+                  ),
+                ],
               ),
             ],
           )

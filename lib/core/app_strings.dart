@@ -55,7 +55,7 @@ class AppStrings {
   // (adicione aqui)
 
   // ================== S ==================
-  // (adicione aqui)
+  static const String status = 'Status';
 
   // ================== T ==================
   // (adicione aqui)

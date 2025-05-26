@@ -93,9 +93,9 @@ class _AvaliacoesPageState extends State<AvaliacoesPage> {
       itemBuilder: (context, index) {
         return AvaliacaoCard(
           evaluation: avaliacoes[index],
-          onView: () {
-            // aqui pode navegar ou exibir detalhes
-          },
+          onView: () {},
+          onEdit: (){},
+          onDelete: (){},
         );
       },
     );

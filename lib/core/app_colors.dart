@@ -20,6 +20,18 @@ class AppColors {
   static Color grey600 = Colors.grey[600]!;
   static Color grey300 = Colors.grey[300]!;
 
+  // Tons de vermelho
+  static Color red300 = Colors.red[300]!;
+
+  // Tons de azul
+  static Color blue300 = Colors.blue[300]!;
+
+  // Tons de verde
+  static Color green300 = Colors.green[300]!;
+
+  // Tons de amarelo
+  static Color amber300 = Colors.amber[300]!;
+
   // Feedbacks
   static const Color success = Colors.green;
   static const Color error = Colors.red;
