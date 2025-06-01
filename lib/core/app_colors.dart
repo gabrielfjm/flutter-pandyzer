@@ -11,13 +11,29 @@ class AppColors {
   static const Color black87 = Colors.black87;
   static const Color white = Colors.white;
   static const Color grey = Colors.grey;
+  static const Color red = Colors.red;
 
   // Tons de cinza
   static Color grey900 = Colors.grey[900]!;
   static Color grey800 = Colors.grey[800]!;
   static Color grey700 = Colors.grey[700]!;
   static Color grey600 = Colors.grey[600]!;
+  static Color grey500 = Colors.grey[500]!;
   static Color grey300 = Colors.grey[300]!;
+  static Color grey200 = Colors.grey[200]!;
+  static Color grey100 = Colors.grey[100]!;
+
+  // Tons de vermelho
+  static Color red300 = Colors.red[300]!;
+
+  // Tons de azul
+  static Color blue300 = Colors.blue[300]!;
+
+  // Tons de verde
+  static Color green300 = Colors.green[300]!;
+
+  // Tons de amarelo
+  static Color amber300 = Colors.amber[300]!;
 
   // Feedbacks
   static const Color success = Colors.green;

@@ -1,15 +1,22 @@
 class AppStrings {
   // ================== A ==================
   static const String avaliacoes = 'Avaliações';
+  static const String avaliacao = 'Avaliação';
 
   // ================== B ==================
   // (adicione aqui)
 
   // ================== C ==================
-  // (adicione aqui)
+  static const String cadastrarAvaliacao = 'Cadastrar Avaliação';
+  static const String cancelar = 'Cancelar';
+  static const String confirmar = 'Confirmar';
 
   // ================== D ==================
-  // (adicione aqui)
+  static const String descricaoDaAvaliacao = 'Descrição da Avaliação';
+  static const String descricao = 'Descrição';
+  static const String dataInicial = 'Data Inicial';
+  static const String dataFinal = 'Data Final';
+  static const String dominio = 'Domínio';
 
   // ================== E ==================
   // (adicione aqui)
@@ -22,6 +29,7 @@ class AppStrings {
 
   // ================== H ==================
   static const String home = 'Home';
+  static const String hifen = '-';
 
   // ================== I ==================
   // (adicione aqui)
@@ -34,15 +42,17 @@ class AppStrings {
 
   // ================== L ==================
   static const String logout = 'Logout';
+  static const String linkDaInterface = 'Link da Interface';
 
   // ================== M ==================
   // (adicione aqui)
 
   // ================== N ==================
-  // (adicione aqui)
+  static const String nomeDoUsuario = 'Nome do Usuário';
 
   // ================== O ==================
-  // (adicione aqui)
+  static const String objetivo = 'Objetivo';
+  static const String objetivos = 'Objetivos';
 
   // ================== P ==================
   // (adicione aqui)
@@ -54,16 +64,17 @@ class AppStrings {
   // (adicione aqui)
 
   // ================== S ==================
-  // (adicione aqui)
+  static const String status = 'Status';
+  static const String salvar = 'Salvar';
 
   // ================== T ==================
-  // (adicione aqui)
+  static const String tipoDeAplicacao = 'Tipo de Aplicação';
 
   // ================== U ==================
   // (adicione aqui)
 
   // ================== V ==================
-  // (adicione aqui)
+  static const String voltar = 'Voltar';
 
   // ================== W ==================
   // (adicione aqui)

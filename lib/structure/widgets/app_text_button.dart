@@ -14,7 +14,11 @@ class AppTextButton extends StatelessWidget {
   final Color? backgroundColor;
   final bool? border;
   final BorderRadiusGeometry? borderRadius;
-  final Color? borderColor;  
+  final Color? borderColor;
+  final IconData? icon;
+  final double iconSize;
+  final double? width;
+  final double? height;
 
   const AppTextButton({
     super.key,
@@ -27,12 +31,17 @@ class AppTextButton extends StatelessWidget {
     this.border,
     this.borderRadius,
     this.borderColor,
+    this.icon,
+    this.iconSize = AppFontSize.fs17,
+    this.width,
+    this.height,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: AppSizes.s100,
+      height: height ?? AppSizes.s50,
+      width: width ?? AppSizes.s100,
       decoration: BoxDecoration(
         color: backgroundColor ?? AppColors.black,
         borderRadius: borderRadius ?? BorderRadius.circular(AppSpacing.normal),
@@ -40,7 +49,8 @@ class AppTextButton extends StatelessWidget {
             ? Border.all(
           color: borderColor ?? AppColors.white,
           width: 1,
-        ) : null,
+        )
+            : null,
       ),
       child: TextButton(
         onPressed: onPressed,
@@ -50,10 +60,20 @@ class AppTextButton extends StatelessWidget {
             borderRadius: borderRadius ?? BorderRadius.circular(8),
           ),
         ),
-        child: appText(
-          text: text,
-          color: textColor,
-          fontSize: fontSize,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            appText(
+              text: text,
+              color: textColor ?? AppColors.white,
+              fontSize: fontSize,
+            ),
+            if (icon != null) ...[
+              const SizedBox(width: 8),
+              Icon(icon, size: iconSize, color: textColor ?? AppColors.white),
+            ],
+          ],
         ),
       ),
     );
