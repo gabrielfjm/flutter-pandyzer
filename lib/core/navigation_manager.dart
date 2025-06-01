@@ -16,4 +16,9 @@ class NavigationManager {
   void goTo(Widget page) {
     _navigate(page);
   }
+
+  void goToPrevious(BuildContext context) {
+    Navigator.pop(context);
+  }
+
 }

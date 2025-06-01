@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_pandyzer/core/app_colors.dart';
 import 'package:flutter_pandyzer/core/app_font_size.dart';
+import 'package:flutter_pandyzer/core/app_icons.dart';
+import 'package:flutter_pandyzer/core/app_sizes.dart';
+import 'package:flutter_pandyzer/core/app_spacing.dart';
 import 'package:flutter_pandyzer/core/app_strings.dart';
 import 'package:flutter_pandyzer/structure/http/models/Evaluation.dart';
 import 'package:flutter_pandyzer/structure/pages/avaliacoes/avaliacoes_bloc.dart';
@@ -13,6 +16,7 @@ import 'package:flutter_pandyzer/structure/widgets/app_loading.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_sized_box.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_text.dart';
 import 'package:flutter_pandyzer/core/navigation_manager.dart';
+import 'package:flutter_pandyzer/structure/widgets/app_text_button.dart';
 import 'package:flutter_pandyzer/structure/widgets/avaliacao_card.dart';
 import 'cadastro/cadastro_avaliacoes_page.dart';
 
@@ -52,7 +56,7 @@ class _AvaliacoesPageState extends State<AvaliacoesPage> {
         text: AppStrings.avaliacoes,
         fontSize: AppFontSize.fs28,
         fontWeight: FontWeight.bold,
-        color: AppColors.white,
+        color: AppColors.black,
       ),
     );
   }
@@ -60,12 +64,6 @@ class _AvaliacoesPageState extends State<AvaliacoesPage> {
   Widget filters() {
     return Row(
       children: [
-        ElevatedButton.icon(
-          onPressed: () => _addAvaliacao(),
-          icon: const Icon(Icons.add),
-          label: const Text('Criar Avaliação'),
-        ),
-        appSizedBox(width: 16),
         const Expanded(
           child: TextField(
             decoration: InputDecoration(
@@ -73,7 +71,15 @@ class _AvaliacoesPageState extends State<AvaliacoesPage> {
               border: OutlineInputBorder(),
             ),
           ),
-        )
+        ),
+        appSizedBox(width: AppSpacing.big),
+        AppTextButton(
+          text: AppStrings.avaliacao,
+          icon:  AppIcons.add,
+          width: AppSizes.s150,
+          onPressed: () => _addAvaliacao(),
+
+        ),
       ],
     );
   }
@@ -87,7 +93,6 @@ class _AvaliacoesPageState extends State<AvaliacoesPage> {
         ),
       );
     }
-
     return ListView.builder(
       itemCount: avaliacoes.length,
       itemBuilder: (context, index) {

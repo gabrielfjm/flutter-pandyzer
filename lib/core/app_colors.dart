@@ -18,7 +18,10 @@ class AppColors {
   static Color grey800 = Colors.grey[800]!;
   static Color grey700 = Colors.grey[700]!;
   static Color grey600 = Colors.grey[600]!;
+  static Color grey500 = Colors.grey[500]!;
   static Color grey300 = Colors.grey[300]!;
+  static Color grey200 = Colors.grey[200]!;
+  static Color grey100 = Colors.grey[100]!;
 
   // Tons de vermelho
   static Color red300 = Colors.red[300]!;

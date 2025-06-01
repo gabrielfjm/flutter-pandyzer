@@ -69,7 +69,7 @@ class _MainPageState extends State<MainPage> {
         ],
       ),
       body: Container(
-        color: AppColors.grey900,
+        color: AppColors.white,
         width: double.infinity,
         height: double.infinity,
         child: _bodyContent,

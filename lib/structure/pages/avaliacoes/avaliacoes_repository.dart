@@ -1,25 +1,52 @@
+import 'package:flutter_pandyzer/structure/http/models/ApplicationType.dart';
 import 'package:flutter_pandyzer/structure/http/models/Evaluation.dart';
-import 'package:flutter_pandyzer/structure/http/services/avaliacoes_service.dart';
+import 'package:flutter_pandyzer/structure/http/models/Objective.dart';
+import 'package:flutter_pandyzer/structure/http/models/User.dart';
+import 'package:flutter_pandyzer/structure/http/services/avaliacao_service.dart';
+import 'package:flutter_pandyzer/structure/http/services/dominio_service.dart';
+import 'package:flutter_pandyzer/structure/http/services/objetivo_service.dart';
+import 'package:flutter_pandyzer/structure/http/services/usuario_service.dart';
 
 mixin AvaliacoesRepository {
 
+  //AVALIAÇÃO
   static void createAvaliacao(Evaluation avaliacao) async {
-    return AvaliacoesService.postAvaliacao(avaliacao);
+    return await AvaliacaoService.postAvaliacao(avaliacao);
   }
 
   static Future<List<Evaluation>> getAvaliacoes() async {
-    return AvaliacoesService.getAvaliacoes();
+    return await AvaliacaoService.getAvaliacoes();
   }
 
   static Future<Evaluation> getAvaliacoesById(int id) async {
-    return AvaliacoesService.getAvaliacaoById(id);
+    return await AvaliacaoService.getAvaliacaoById(id);
   }
 
   static void putAvaliacao(Evaluation avaliacao) async {
-    return AvaliacoesService.putAvaliacao(avaliacao);
+    return await AvaliacaoService.putAvaliacao(avaliacao);
   }
 
   static void deleteAvaliacao(int id) async {
-    return AvaliacoesService.deleteAvaliacao(id);
+    return await AvaliacaoService.deleteAvaliacao(id);
   }
+
+  //DOMINIO
+  static Future<List<ApplicationType>> getDominios() async {
+    return await DominioService.getDominios();
+  }
+
+  static Future<ApplicationType> getDominioById(int id) async {
+    return await DominioService.getDominioById(id);
+  }
+
+  //OBEJTIVO
+  static void createObjetivo(Objective objetivo) async {
+    return await ObjetivoService.postObjetivo(objetivo);
+  }
+
+  //USUARIO
+  static Future<User> getUsuarioById(int id) async {
+    return await UsuarioService.getUsuarioById(id);
+  }
+
 }
