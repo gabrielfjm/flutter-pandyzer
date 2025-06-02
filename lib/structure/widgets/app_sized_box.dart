@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 Widget appSizedBox({
   double? width,
   double? height,
+  Widget? child,
 }) {
   return SizedBox(
     width: width,
     height: height,
+    child: child,
   );
 }

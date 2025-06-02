@@ -5,6 +5,7 @@ import 'package:flutter_pandyzer/core/app_spacing.dart';
 import 'package:flutter_pandyzer/core/app_strings.dart';
 import 'package:flutter_pandyzer/core/navigation_manager.dart';
 import 'package:flutter_pandyzer/structure/pages/avaliacoes/avaliacoes_page.dart';
+import 'package:flutter_pandyzer/structure/pages/login/login_page.dart';
 import 'package:flutter_pandyzer/structure/pages/perfil/perfil_page.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_bar_custom.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_icon_button.dart';
@@ -21,7 +22,7 @@ class MainPage extends StatefulWidget {
 }
 
 class _MainPageState extends State<MainPage> {
-  Widget _bodyContent = const HomePage();
+  Widget _bodyContent = const LoginPage();
 
   void _navigateTo(Widget page) {
     setState(() {

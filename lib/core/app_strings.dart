@@ -10,6 +10,8 @@ class AppStrings {
   static const String cadastrarAvaliacao = 'Cadastrar Avaliação';
   static const String cancelar = 'Cancelar';
   static const String confirmar = 'Confirmar';
+  static const String criarConta = 'Criar Conta';
+  static const String cliqueAqui = 'Clique Aqui!';
 
   // ================== D ==================
   static const String descricaoDaAvaliacao = 'Descrição da Avaliação';
@@ -19,7 +21,10 @@ class AppStrings {
   static const String dominio = 'Domínio';
 
   // ================== E ==================
-  // (adicione aqui)
+  static const String email = 'E-mail';
+  static const String empty = '';
+  static const String entrar = 'Entrar';
+  static const String esqueciMinhaSenha = 'Esqueci minha senha';
 
   // ================== F ==================
   // (adicione aqui)
@@ -43,12 +48,15 @@ class AppStrings {
   // ================== L ==================
   static const String logout = 'Logout';
   static const String linkDaInterface = 'Link da Interface';
+  static const String login = 'Login';
 
   // ================== M ==================
-  // (adicione aqui)
+  static const String mensagemEmailEstaVazio = 'Campo de E-mail está vazio!';
+  static const String mensagemSenhaEstaVazia = 'Campo de Senha está vazio!';
 
   // ================== N ==================
   static const String nomeDoUsuario = 'Nome do Usuário';
+  static const String naoPossuiConta = 'Não possuí conta?';
 
   // ================== O ==================
   static const String objetivo = 'Objetivo';
@@ -66,6 +74,7 @@ class AppStrings {
   // ================== S ==================
   static const String status = 'Status';
   static const String salvar = 'Salvar';
+  static const String senha = 'Senha';
 
   // ================== T ==================
   static const String tipoDeAplicacao = 'Tipo de Aplicação';
@@ -87,4 +96,6 @@ class AppStrings {
 
   // ================== Z ==================
   // (adicione aqui)
+
+
 }
