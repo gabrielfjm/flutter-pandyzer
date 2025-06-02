@@ -4,7 +4,7 @@ import 'package:flutter_pandyzer/core/http_client.dart';
 import 'package:flutter_pandyzer/structure/http/models/User.dart';
 import 'package:flutter_pandyzer/structure/http/models/UserType.dart';
 
-mixin TipousuarioService {
+mixin TipoUsuarioService {
 
   static String rota = '/usertype';
 

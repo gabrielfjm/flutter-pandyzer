@@ -31,11 +31,6 @@ class _AvaliacoesPageState extends State<AvaliacoesPage> {
   final AvaliacoesBloc _bloc = AvaliacoesBloc();
 
   void _onChangeState(AvaliacoesState state) {
-    if (state is AvaliacoesError) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(state.message)),
-      );
-    }
   }
 
   @override
@@ -119,33 +114,33 @@ class _AvaliacoesPageState extends State<AvaliacoesPage> {
     );
   }
 
-
-  Widget _blocListener() {
-    return BlocListener<AvaliacoesBloc, AvaliacoesState>(
+  Widget _blocConsumer() {
+    return BlocConsumer<AvaliacoesBloc, AvaliacoesState>(
       bloc: _bloc,
       listener: (context, state) => _onChangeState(state),
-      child: BlocBuilder<AvaliacoesBloc, AvaliacoesState>(
-        bloc: _bloc,
-        builder: (context, state) {
-          if (state is AvaliacoesLoading) {
+      builder: (context, state) {
+        switch(state.runtimeType){
+          case AvaliacoesLoading:
             return const AppLoading();
-          } else if (state is AvaliacoesLoaded) {
+          case AvaliacoesLoaded:
             return body(state.avaliacoes);
-          } else if (state is AvaliacoesError) {
-            return AppError(message: state.message);
-          } else {
+          case AvaliacoesError:
+            return AppError();
+          default:
             return appSizedBox();
-          }
-        },
-      ),
+        }
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: _blocListener(),
+    return Container(
+      width: 300,
+      child: Padding(
+        padding: EdgeInsetsGeometry.all(AppSpacing.big),
+        child: _blocConsumer(),
+      ),
     );
   }
 

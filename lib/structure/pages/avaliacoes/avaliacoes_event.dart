@@ -1,6 +1,4 @@
 import 'package:flutter_pandyzer/structure/http/models/ApplicationType.dart';
-import 'package:flutter_pandyzer/structure/http/models/Objective.dart';
-import 'package:flutter_pandyzer/structure/http/models/User.dart';
 
 abstract class AvaliacoesEvent {}
 

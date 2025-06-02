@@ -5,12 +5,14 @@ import 'package:flutter_pandyzer/core/app_spacing.dart';
 import 'package:flutter_pandyzer/core/app_strings.dart';
 import 'package:flutter_pandyzer/core/navigation_manager.dart';
 import 'package:flutter_pandyzer/structure/pages/avaliacoes/avaliacoes_page.dart';
+import 'package:flutter_pandyzer/structure/pages/login/login_page.dart';
 import 'package:flutter_pandyzer/structure/pages/perfil/perfil_page.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_bar_custom.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_icon_button.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_sized_box.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_text_button.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_text_button_app_bar.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'home/home_page.dart';
 
 class MainPage extends StatefulWidget {
@@ -59,7 +61,15 @@ class _MainPageState extends State<MainPage> {
           ),
           appSizedBox(width: AppSpacing.normal),
           AppTextButton(
-            onPressed: () => _navigateTo(const HomePage()),
+            onPressed: () async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.clear();
+
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const LoginPage()),
+                    (route) => false,
+              );
+            },
             text: AppStrings.logout,
             backgroundColor: AppColors.grey900,
             textColor: AppColors.white,

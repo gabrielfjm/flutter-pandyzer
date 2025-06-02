@@ -12,9 +12,9 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
       emit(AvaliacoesLoading());
       try{
         List<Evaluation> avaliacoes = await AvaliacoesRepository.getAvaliacoes();
-        return emit(AvaliacoesLoaded(avaliacoes));
+        return emit(AvaliacoesLoaded(avaliacoes: avaliacoes));
       } catch (e) {
-        emit(AvaliacoesError('Erro ao carregar avaliações'));
+        emit(AvaliacoesError());
       }
     });
 
@@ -23,9 +23,9 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
       try{
         List<ApplicationType> dominios = await AvaliacoesRepository.getDominios();
 
-        return emit(AvaliacaoCamposLoaded(dominios));
+        return emit(AvaliacaoCamposLoaded(dominios: dominios));
       }catch (e){
-        emit(AvaliacoesError('Erro ao carregar avaliações'));
+        emit(AvaliacoesError());
       }
     });
 
@@ -44,7 +44,7 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
 
         emit(AvaliacaoCadastrada());
       } catch (e) {
-        emit(AvaliacoesError('Erro ao carregar avaliações'));
+        emit(AvaliacoesError());
       }
     });
   }
