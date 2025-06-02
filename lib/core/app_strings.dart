@@ -12,6 +12,9 @@ class AppStrings {
   static const String confirmar = 'Confirmar';
   static const String criarConta = 'Criar Conta';
   static const String cliqueAqui = 'Clique Aqui!';
+  static const String confirmarSenha = 'Confirmar Senha';
+  static const String cadastro = 'Cadastro';
+  static const String cadastrar = 'Cadastrar';
 
   // ================== D ==================
   static const String descricaoDaAvaliacao = 'Descrição da Avaliação';
@@ -52,7 +55,12 @@ class AppStrings {
 
   // ================== M ==================
   static const String mensagemEmailEstaVazio = 'Campo de E-mail está vazio!';
+  static const String mensagemNomeEstaVazio = 'Campo de Nome está vazio!';
   static const String mensagemSenhaEstaVazia = 'Campo de Senha está vazio!';
+  static const String mensagemConfirmarSenhaEstaVazio = 'Campo de Confirmar Senha está vazio!';
+  static const String mensagemSelecioneOTipoDeUsuario = 'Selecione o Tipo de Usuário!';
+  static const String mensagemSenhasInformadasNaoCoincidem = 'Senhas Informadas não Coincidem!';
+  static const String mensagemDeErro = 'Houve um erro inesperado! Tente novamente mais tarde!';
 
   // ================== N ==================
   static const String nomeDoUsuario = 'Nome do Usuário';
@@ -75,6 +83,7 @@ class AppStrings {
   static const String status = 'Status';
   static const String salvar = 'Salvar';
   static const String senha = 'Senha';
+  static const String selecioneOTipoDeUsuario = 'Selecione o Tipo de Usuário';
 
   // ================== T ==================
   static const String tipoDeAplicacao = 'Tipo de Aplicação';

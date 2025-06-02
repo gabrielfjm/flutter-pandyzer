@@ -11,6 +11,7 @@ class AppTextField extends StatelessWidget {
   final TextEditingController controller;
   final double? height;
   final double? width;
+  final bool? obscureText;
 
   const AppTextField({
     super.key,
@@ -18,6 +19,7 @@ class AppTextField extends StatelessWidget {
     required this.controller,
     this.height,
     this.width,
+    this.obscureText,
   });
 
   @override
@@ -31,6 +33,7 @@ class AppTextField extends StatelessWidget {
           appText(text: label, color: AppColors.black, fontSize: AppFontSize.fs15, fontWeight: FontWeight.bold),
           appSizedBox(height: AppSpacing.small),
           TextField(
+            obscureText: obscureText ?? false,
             controller: controller,
             style: TextStyle(
               fontSize: AppFontSize.fs15,

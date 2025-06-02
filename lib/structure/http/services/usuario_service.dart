@@ -37,6 +37,20 @@ mixin UsuarioService {
     }
   }
 
+  static Future<bool> getEmail(String email) async {
+    try {
+      final response = await HttpClient.get('$rota/email/$email');
+
+      if (response.statusCode == 200) {
+        return true;
+      } else {
+        return false;
+      }
+    } catch (e) {
+      throw Exception('Erro ao buscar usuario pelo email');
+    }
+  }
+
   static Future<void> postUsuario(User usuario) async {
     try {
       final response = await HttpClient.post(rota, body: usuario.toJson());

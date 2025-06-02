@@ -11,9 +11,9 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
       emit(LoginLoading());
       try{
         User usuario = await LoginRepository.postLogin(event.email, event.senha);
-        return emit(LoginSuccesState(usuario));
+        return emit(LoginSuccesState(usuario: usuario));
       } catch (e) {
-        emit(LoginError('Erro ao verificar Login'));
+        emit(LoginError(message: 'Erro ao verificar Login'));
       }
     });
   }

@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_pandyzer/core/app_colors.dart';
 import 'package:flutter_pandyzer/core/app_font_size.dart';
+import 'package:flutter_pandyzer/core/app_strings.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_text.dart';
 
 class AppError extends StatelessWidget {
-  final String message;
-  final double fontSize;
-  final Color color;
+  final String? message;
+  final double? fontSize;
+  final Color? color;
 
   const AppError({
     super.key,
-    required this.message,
+    this.message,
     this.fontSize = AppFontSize.fs17,
     this.color = AppColors.red,
   });
@@ -19,7 +20,7 @@ class AppError extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: appText(
-        text: message,
+        text: AppStrings.mensagemDeErro,
         fontSize: fontSize,
         color: color,
       ),

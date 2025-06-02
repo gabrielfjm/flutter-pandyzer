@@ -1,19 +1,20 @@
 import 'package:flutter_pandyzer/structure/http/models/User.dart';
 
-abstract class LoginState{}
+abstract class LoginState{
+  User? usuario;
+  String? message;
+
+  LoginState({this.usuario, this.message});
+}
 
 class LoginInitial extends LoginState {}
 
 class LoginLoading extends LoginState {}
 
 class LoginSuccesState extends LoginState {
-  User usuario;
-
-  LoginSuccesState(this.usuario);
+  LoginSuccesState({required super.usuario});
 }
 
 class LoginError extends LoginState {
-  String message;
-
-  LoginError(this.message);
+  LoginError({required super.message});
 }

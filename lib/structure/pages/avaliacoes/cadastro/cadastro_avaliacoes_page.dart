@@ -59,13 +59,6 @@ class _CadastroAvaliacoesPageState extends State<CadastroAvaliacoesPage> {
 
     print(state.toString());
 
-    if (state is AvaliacoesError) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(state.message)),
-      );
-      print('erro');
-    }
-
     if(state is AvaliacaoCamposLoaded){
       print('cheguei aqui!');
       setState(() {
@@ -250,33 +243,28 @@ class _CadastroAvaliacoesPageState extends State<CadastroAvaliacoesPage> {
     );
   }
 
-  Widget _blocListener() {
-    return BlocListener<AvaliacoesBloc, AvaliacoesState>(
+  Widget _blocConsumer() {
+    return BlocConsumer<AvaliacoesBloc, AvaliacoesState>(
       bloc: widget.bloc,
       listener: (context, state) => _onChangeState(state),
-      child: BlocBuilder<AvaliacoesBloc, AvaliacoesState>(
-        bloc: widget.bloc,
-        builder: (context, state) {
-          if (state is AvaliacoesLoading) {
+      builder: (context, state) {
+        switch(state.runtimeType){
+          case AvaliacoesLoading:
             return const AppLoading();
-          } else if (state is AvaliacaoCamposLoaded) {
+          case AvaliacaoCamposLoaded:
             return body();
-          } else if (state is AvaliacoesError) {
-            return AppError(message: state.message);
-          } else {
+          case AvaliacoesError:
+            return AppError();
+          default:
             return appSizedBox();
-          }
-        },
-      ),
+        }
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: _blocListener(),
-    );
+    return _blocConsumer();
   }
 
   @override

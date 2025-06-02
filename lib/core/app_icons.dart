@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 class AppIcons {
   static const IconData add = Icons.add;
@@ -25,4 +26,7 @@ class AppIcons {
   static const IconData login = Icons.login;
   static const IconData view = Icons.remove_red_eye;
   static const IconData calendar = Icons.calendar_today;
+  static const IconData users = Icons.supervised_user_circle_outlined;
+  static const IconData searchCheck = Icons.check_circle_outline;
+  static const IconData brain = Icons.computer_outlined;
 }

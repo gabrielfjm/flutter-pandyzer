@@ -1,28 +1,49 @@
 import 'package:flutter_pandyzer/structure/http/models/ApplicationType.dart';
 import 'package:flutter_pandyzer/structure/http/models/Evaluation.dart';
 
-abstract class AvaliacoesState {}
+abstract class AvaliacoesState {
+  List<ApplicationType> dominios;
+  List<Evaluation> avaliacoes;
 
-class AvaliacoesInitial extends AvaliacoesState {}
-
-class AvaliacoesLoading extends AvaliacoesState {}
-
-class AvaliacaoCamposLoaded extends AvaliacoesState{
-  final List<ApplicationType> dominios;
-
-  AvaliacaoCamposLoaded(this.dominios);
+  AvaliacoesState({required this.dominios, required this.avaliacoes});
 }
 
-class AvaliacaoCadastrada extends AvaliacoesState{}
+class AvaliacoesInitial extends AvaliacoesState {
+  AvaliacoesInitial() : super(
+    dominios: [],
+    avaliacoes: [],
+  );
+}
+
+class AvaliacoesLoading extends AvaliacoesState {
+  AvaliacoesLoading() : super(
+    dominios: [],
+    avaliacoes: [],
+  );
+}
+
+class AvaliacaoCamposLoaded extends AvaliacoesState{
+  AvaliacaoCamposLoaded({required super.dominios}) : super(
+    avaliacoes: [],
+  );
+}
+
+class AvaliacaoCadastrada extends AvaliacoesState{
+  AvaliacaoCadastrada() : super(
+    dominios: [],
+    avaliacoes: [],
+  );
+}
 
 class AvaliacoesLoaded extends AvaliacoesState {
-  final List<Evaluation> avaliacoes;
-
-  AvaliacoesLoaded(this.avaliacoes);
+  AvaliacoesLoaded({required super.avaliacoes}) : super(
+    dominios: [],
+  );
 }
 
 class AvaliacoesError extends AvaliacoesState {
-  String message;
-
-  AvaliacoesError(this.message);
+  AvaliacoesError() : super(
+    dominios: [],
+    avaliacoes: [],
+  );
 }
