@@ -4,7 +4,6 @@ import 'package:flutter_pandyzer/core/app_font_size.dart';
 import 'package:flutter_pandyzer/core/app_sizes.dart';
 import 'package:flutter_pandyzer/core/app_spacing.dart';
 import 'package:flutter_pandyzer/core/app_strings.dart';
-
 import 'app_sized_box.dart';
 import 'app_text.dart';
 
@@ -28,7 +27,7 @@ class AppObjectivesField extends StatefulWidget {
 
 class _AppObjectivesFieldState extends State<AppObjectivesField> {
   final TextEditingController _controller = TextEditingController();
-  String? _hoveredObjective;
+  final Set<String> _hovered = {};
 
   @override
   Widget build(BuildContext context) {
@@ -70,8 +69,9 @@ class _AppObjectivesFieldState extends State<AppObjectivesField> {
               IconButton(
                 icon: const Icon(Icons.add),
                 onPressed: () {
-                  if (_controller.text.isNotEmpty) {
-                    widget.onAdd(_controller.text);
+                  final text = _controller.text.trim();
+                  if (text.isNotEmpty) {
+                    widget.onAdd(text);
                     _controller.clear();
                   }
                 },
@@ -79,41 +79,50 @@ class _AppObjectivesFieldState extends State<AppObjectivesField> {
             ],
           ),
           appSizedBox(height: AppSpacing.medium),
-          ...widget.objectives.map((e) {
-            return MouseRegion(
-              onEnter: (_) => setState(() => _hoveredObjective = e),
-              onExit: (_) => setState(() => _hoveredObjective = null),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(AppSpacing.medium),
-                margin: const EdgeInsets.only(bottom: AppSpacing.small),
-                decoration: BoxDecoration(
-                  color: AppColors.grey200,
-                  borderRadius: BorderRadius.circular(AppSizes.s10),
-                  border: Border.all(color: AppColors.grey500),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        e,
-                        style: const TextStyle(fontSize: AppFontSize.fs15),
+          SizedBox(
+            height: 140,
+            child: Scrollbar(
+              thumbVisibility: true,
+              child: ListView.builder(
+                itemCount: widget.objectives.length,
+                itemBuilder: (context, index) {
+                  final text = widget.objectives[index];
+                  final isHovered = _hovered.contains(text);
+
+                  return MouseRegion(
+                    onEnter: (_) => setState(() => _hovered.add(text)),
+                    onExit: (_) => setState(() => _hovered.remove(text)),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      margin: const EdgeInsets.only(bottom: 8),
+                      decoration: BoxDecoration(
+                        color: AppColors.grey200,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(child: Text(text)),
+                          if (isHovered)
+                            MouseRegion(
+                              cursor: SystemMouseCursors.click,
+                              child: GestureDetector(
+                                onTap: () => widget.onRemove(text),
+                                child: const Padding(
+                                  padding: EdgeInsets.only(left: 8.0),
+                                  child: Icon(Icons.delete, size: 18),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
-                    if (_hoveredObjective == e)
-                      GestureDetector(
-                        onTap: () => widget.onRemove(e),
-                        child: const Padding(
-                          padding: EdgeInsets.only(left: AppSpacing.small),
-                          child: Icon(Icons.delete, size: 20),
-                        ),
-                      ),
-                  ],
-                ),
+                  );
+                },
               ),
-            );
-          }).toList(),
+            ),
+          ),
         ],
       ),
     );

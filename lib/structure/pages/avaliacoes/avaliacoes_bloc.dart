@@ -12,18 +12,18 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
       emit(AvaliacoesLoading());
       try{
         List<Evaluation> avaliacoes = await AvaliacoesRepository.getAvaliacoes();
-        return emit(AvaliacoesLoaded(avaliacoes: avaliacoes));
+        emit(AvaliacoesLoaded(avaliacoes: avaliacoes));
       } catch (e) {
         emit(AvaliacoesError());
       }
     });
 
     on<LoadCamposCadastroAvaliacao>((event, emit) async {
-      //emit(AvaliacoesLoading());
+      emit(AvaliacoesLoading());
       try{
         List<ApplicationType> dominios = await AvaliacoesRepository.getDominios();
 
-        return emit(AvaliacaoCamposLoaded(dominios: dominios));
+        emit(AvaliacaoCamposLoaded(dominios: dominios));
       }catch (e){
         emit(AvaliacoesError());
       }

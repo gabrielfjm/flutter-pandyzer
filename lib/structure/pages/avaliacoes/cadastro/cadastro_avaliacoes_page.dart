@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_pandyzer/core/app_colors.dart';
+import 'package:flutter_pandyzer/core/app_data_operations.dart';
 import 'package:flutter_pandyzer/core/app_font_size.dart';
 import 'package:flutter_pandyzer/core/app_icons.dart';
 import 'package:flutter_pandyzer/core/app_sizes.dart';
@@ -23,6 +24,7 @@ import 'package:flutter_pandyzer/structure/widgets/app_text.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_text_button.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_text_field.dart';
 import 'package:flutter_pandyzer/core/navigation_manager.dart';
+import 'package:flutter_pandyzer/structure/widgets/app_toast.dart';
 
 import 'modal/app_avaliadores_select.dart';
 
@@ -49,18 +51,13 @@ class _CadastroAvaliacoesPageState extends State<CadastroAvaliacoesPage> {
   final _linkController = TextEditingController();
   final _startDateController = TextEditingController();
   final _endDateController = TextEditingController();
-  final _objectives = <String>[];
-  ApplicationType? _selectedApplicationType;
+  List<String> _objectives = <String>[];
+  ApplicationType? _selectedDominio;
   final _avaliadores = <String>[];
   late List<ApplicationType> _dominios = [];
 
-
   void _onChangeState(AvaliacoesState state) {
-
-    print(state.toString());
-
     if(state is AvaliacaoCamposLoaded){
-      print('cheguei aqui!');
       setState(() {
         _dominios = state.dominios;
       });
@@ -93,20 +90,6 @@ class _CadastroAvaliacoesPageState extends State<CadastroAvaliacoesPage> {
       controller: _endDateController,
     );
 
-    objetivosField = AppObjectivesField(
-      objectives: _objectives,
-      onAdd: (text) {
-        setState(() {
-          _objectives.add(text);
-        });
-      },
-      onRemove: (text) {
-        setState(() {
-          _objectives.remove(text);
-        });
-      },
-    );
-
     avaliadoresButton = AppAvaliadoresSelector(
       onSelected: (selected) => setState(() => _avaliadores.addAll(selected)),
       avaliadores: _avaliadores,
@@ -125,13 +108,70 @@ class _CadastroAvaliacoesPageState extends State<CadastroAvaliacoesPage> {
   }
 
   void _salvar() {
+    if(_descricaoController.text == AppStrings.empty){
+      showAppToast(
+        context: context,
+        message: AppStrings.mensagemDescricaoEstaVazio,
+      );
+      return;
+    }
+
+    if(_linkController.text == AppStrings.empty){
+      showAppToast(
+        context: context,
+        message: AppStrings.mensagemLinkEstaVazio,
+      );
+      return;
+    }
+
+    if(_startDateController.text == AppStrings.empty){
+      showAppToast(
+        context: context,
+        message: AppStrings.mensagemDataInicialEstaVazio,
+      );
+      return;
+    }
+
+    if(_endDateController.text == AppStrings.empty){
+      showAppToast(
+        context: context,
+        message: AppStrings.mensagemDataFinalEstaVazio,
+      );
+      return;
+    }
+
+    String verificacaoDatas = validarDatas(_startDateController.text, _endDateController.text);
+    if(verificacaoDatas != AppStrings.empty){
+      showAppToast(
+        context: context,
+        message: verificacaoDatas,
+      );
+      return;
+    }
+
+    if(_selectedDominio == null){
+      showAppToast(
+        context: context,
+        message: AppStrings.selecioneUmDominio,
+      );
+      return;
+    }
+
+    if(_objectives.isEmpty){
+      showAppToast(
+        context: context,
+        message: AppStrings.mensagemObjetivos,
+      );
+      return;
+    }
+
     widget.bloc.add(
       CadastrarAvaliacaoEvent(
         descricao: _descricaoController.text,
         link: _linkController.text,
         dataInicio: _startDateController.text,
         dataFim: _endDateController.text,
-        tipoAplicacao: _selectedApplicationType!,
+        tipoAplicacao: _selectedDominio!,
         objetivos: _objectives,
         avaliadores: _avaliadores,
       ),
@@ -197,39 +237,64 @@ class _CadastroAvaliacoesPageState extends State<CadastroAvaliacoesPage> {
         borderRadius: BorderRadius.circular(AppSizes.s10),
       ),
       padding: EdgeInsets.all(AppSpacing.big),
-      child: Column(
-        children: [
-          appSizedBox(height: AppSpacing.big),
-          Wrap(
+      child: SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: 400,
+            maxHeight: MediaQuery.of(context).size.height * 0.7,
+          ),
+          child: Column(
             children: [
-              descricaoField,
-              appSizedBox(width: AppSpacing.big),
-              linkField,
+              appSizedBox(height: AppSpacing.big),
+              Wrap(
+                children: [
+                  descricaoField,
+                  appSizedBox(width: AppSpacing.big),
+                  linkField,
+                ],
+              ),
+              appSizedBox(height: AppSpacing.big),
+              Wrap(
+                children: [
+                  dataInicialField,
+                  appSizedBox(width: AppSpacing.big),
+                  dataFinalField,
+                ],
+              ),
+              appSizedBox(height: AppSpacing.big),
+              AppDropdown<ApplicationType>(
+                label: AppStrings.dominio,
+                value: _selectedDominio,
+                items: _dominios,
+                onChanged: (dominio) {
+                  setState(() {
+                    _selectedDominio = dominio;
+                  });
+                },
+                itemLabelBuilder: (dominio) => '${dominio.description}',
+              ),
+              appSizedBox(height: AppSpacing.big),
+              AppObjectivesField(
+                objectives: _objectives,
+                onAdd: (text) {
+                  setState(() {
+                    _objectives.add(text);
+                  });
+                },
+                onRemove: (text) {
+                  setState(() {
+                    _objectives.remove(text);
+                  });
+                },
+              ),
+              appSizedBox(height: AppSpacing.big),
+              avaliadoresButton,
+              appSizedBox(height: AppSpacing.big),
+              _botoesFormulario(),
             ],
           ),
-          appSizedBox(height: AppSpacing.big),
-          Wrap(
-            children: [
-              dataInicialField,
-              appSizedBox(width: AppSpacing.big),
-              dataFinalField,
-            ],
-          ),
-          appSizedBox(height: AppSpacing.big),
-          AppDropdown(
-            label: AppStrings.dominio,
-            items: _dominios,
-            onChanged: (value) => setState(() => _selectedApplicationType = value),
-            value: _selectedApplicationType,
-          ),
-          appSizedBox(height: AppSpacing.big),
-          objetivosField,
-          appSizedBox(height: AppSpacing.big),
-          avaliadoresButton,
-          appSizedBox(height: AppSpacing.big),
-          _botoesFormulario(),
-        ],
-      )
+        ),
+      ),
     );
   }
 

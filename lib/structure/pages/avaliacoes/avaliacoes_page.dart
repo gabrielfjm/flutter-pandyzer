@@ -146,7 +146,6 @@ class _AvaliacoesPageState extends State<AvaliacoesPage> {
 
   @override
   void dispose() {
-    _bloc.close();
     super.dispose();
   }
 }
