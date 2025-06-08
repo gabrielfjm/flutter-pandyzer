@@ -3,4 +3,5 @@ class AppSpacing {
   static const double normal = 10.0;
   static const double medium = 15.0;
   static const double big = 20.0;
+  static const double giant = 40.0;
 }

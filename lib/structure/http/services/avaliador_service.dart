@@ -37,6 +37,22 @@ mixin AvaliadorService {
     }
   }
 
+  static Future<List<Evaluator>> getEvaluatorsByIdEvaluation (int idEvaluation) async {
+    try {
+
+      final response = await HttpClient.get('$rota/evaluation/$idEvaluation');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        return data.map((item) => Evaluator.fromJson(item)).toList();
+      } else {
+        throw Exception('Erro ao buscar avaliadores: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Erro ao buscar avaliadores');
+    }
+  }
+
   static Future<void> postAvaliador(Evaluator avaliador) async {
     try {
       final response = await HttpClient.post(rota, body: avaliador.toJson());
