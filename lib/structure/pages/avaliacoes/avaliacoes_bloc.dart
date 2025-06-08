@@ -4,6 +4,7 @@ import 'package:flutter_pandyzer/structure/http/models/ApplicationType.dart';
 import 'package:flutter_pandyzer/structure/http/models/Evaluation.dart';
 import 'package:flutter_pandyzer/structure/http/models/Evaluator.dart';
 import 'package:flutter_pandyzer/structure/http/models/Objective.dart';
+import 'package:flutter_pandyzer/structure/http/models/Status.dart';
 import 'package:flutter_pandyzer/structure/http/models/User.dart';
 import 'package:flutter_pandyzer/structure/pages/avaliacoes/avaliacoes_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -25,58 +26,84 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
 
     on<LoadCamposCadastroAvaliacao>((event, emit) async {
       emit(AvaliacoesLoading());
-      try{
-        List<ApplicationType> dominios = await AvaliacoesRepository.getDominios();
+      try {
+        final results = await Future.wait([
+          AvaliacoesRepository.getDominios(),
+          AvaliacoesRepository.getUsuariosAvaliadores(),
+        ]);
 
-        emit(AvaliacaoCamposLoaded(dominios: dominios));
-      }catch (e){
-        emit(AvaliacoesError());
+        final dominios = results[0] as List<ApplicationType>;
+        final avaliadores = results[1] as List<User>;
+
+        emit(AvaliacaoCamposLoaded(
+          dominios: dominios,
+          availableEvaluators: avaliadores,
+        ));
+      } catch (e) {
+        emit(AvaliacoesError(message: e.toString()));
       }
     });
 
     on<CadastrarAvaliacaoEvent>((event, emit) async {
       emit(AvaliacoesLoading());
       try {
-
         final prefs = await SharedPreferences.getInstance();
-        int idUsuario = int.parse(prefs.getString('userId')!);
+        final userId = prefs.getString('userId');
+        if (userId == null) {
+          emit(AvaliacoesError(message: "Usuário não autenticado."));
+          return;
+        }
 
-        User user = await AvaliacoesRepository.getUsuarioById(idUsuario);
+        final creator = await AvaliacoesRepository.getUsuarioById(int.parse(userId));
+        final now = DateTime.now().toIso8601String();
 
-        // Pega a data e hora atual uma única vez no formato ISO 8601
-        final String now = DateTime.now().toIso8601String();
+        List<User> finalAvaliadores = List.from(event.avaliadores);
+        if (finalAvaliadores.isEmpty && creator.userType?.description == 'Avaliador') {
+          finalAvaliadores.add(creator);
+        }
 
-        Evaluation avaliacao = new Evaluation(
+        Evaluation avaliacao = Evaluation(
           description: event.descricao,
           link: event.link,
           startDate: AppConvert.convertDateToIso(event.dataInicio),
           finalDate: AppConvert.convertDateToIso(event.dataFim),
           applicationType: event.tipoAplicacao,
-          user: user,
+          user: creator,
           register: now,
         );
 
         Evaluation avaliacaoCadastrada = await AvaliacoesRepository.createAvaliacao(avaliacao);
 
-        for(final objetivo in event.objetivos){
-
-          Objective obj = new Objective(
-            id: null,
+        for (final objetivo in event.objetivos) {
+          Objective obj = Objective(
             description: objetivo,
             evaluation: avaliacaoCadastrada,
             register: now,
           );
-
           await AvaliacoesRepository.createObjetivo(obj);
+        }
+
+        Status statusEmAndamento = await AvaliacoesRepository.getStatusById(2);
+
+        for (final userAvaliador in finalAvaliadores) {
+          final novoAvaliador = Evaluator(
+            user: userAvaliador,
+            evaluation: avaliacaoCadastrada,
+            register: now,
+            status: statusEmAndamento,
+          );
+          await AvaliacoesRepository.createAvaliador(novoAvaliador);
         }
 
         emit(AvaliacaoCadastrada());
       } catch (e) {
-        emit(AvaliacoesError());
+        emit(AvaliacoesError(message: e.toString()));
       }
     });
 
     on<LoadEvaluationDetailsEvent>((event, emit) async {
+      final currentState = state;
+      emit(AvaliacoesLoading(oldState: currentState));
       try {
         final results = await Future.wait([
           AvaliacoesRepository.getAvaliacoesById(event.evaluationId),
@@ -84,55 +111,91 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
           AvaliacoesRepository.getDominios(),
           AvaliacoesRepository.getEvaluatorsByIdEvaluation(event.evaluationId),
           AvaliacoesRepository.getAvaliacoes(),
+          AvaliacoesRepository.getUsuariosAvaliadores(),
         ]);
 
         final evaluation = results[0] as Evaluation;
         final objectives = results[1] as List<Objective>;
         final dominios = results[2] as List<ApplicationType>;
-        final evaluators = results[3] as List<Evaluator>;
-        final avaliacoes = results[4] as List<Evaluation>;
+        final selectedEvaluators = results[3] as List<Evaluator>;
+        final allEvaluations = results[4] as List<Evaluation>;
+        final availableEvaluators = results[5] as List<User>;
 
         emit(EvaluationDetailsLoaded(
-          avaliacoes: avaliacoes,
+          avaliacoes: allEvaluations,
           evaluation: evaluation,
           objectives: objectives,
           dominios: dominios,
-          evaluators: evaluators,
+          evaluators: selectedEvaluators,
+          availableEvaluators: availableEvaluators,
         ));
       } catch (e) {
-        emit(AvaliacoesError());
+        emit(AvaliacoesError(message: e.toString()));
       }
     });
 
     on<UpdateAvaliacaoEvent>((event, emit) async {
-      emit(AvaliacoesLoading());
+      final currentState = state;
+      emit(AvaliacoesLoading(oldState: currentState));
       try {
 
-        final objetivosAntigos = await AvaliacoesRepository.getObjectivesByEvaluationId(event.id);
-        final descricoesAntigas = objetivosAntigos.map((o) => o.description).toSet();
-        final descricoesNovas = event.objetivos.toSet();
+        final prefs = await SharedPreferences.getInstance();
+        final userId = prefs.getString('userId');
+        if (userId == null) {
+          emit(AvaliacoesError(message: "Usuário não autenticado."));
+          return;
+        }
 
-        final objetivosParaDeletar = objetivosAntigos
-            .where((obj) => !descricoesNovas.contains(obj.description));
-        final descricoesParaAdicionar = descricoesNovas
-            .where((desc) => !descricoesAntigas.contains(desc));
+        final creator = await AvaliacoesRepository.getUsuarioById(int.parse(userId));
+        final now = DateTime.now().toIso8601String();
+
+        final evaluationToUpdate = Evaluation(
+          id: event.id,
+          description: event.descricao,
+          link: event.link,
+          startDate: AppConvert.convertDateToIso(event.dataInicio),
+          finalDate: AppConvert.convertDateToIso(event.dataFim),
+          applicationType: event.tipoAplicacao,
+          user: creator,
+          register: now,
+        );
+        await AvaliacoesRepository.putAvaliacao(evaluationToUpdate);
+
+        final objetivosAntigos = await AvaliacoesRepository.getObjectivesByEvaluationId(event.id);
+        final avaliadoresAntigos = await AvaliacoesRepository.getEvaluatorsByIdEvaluation(event.id);
+
+        final descricoesObjetivosAntigos = objetivosAntigos.map((o) => o.description).toSet();
+        final idsAvaliadoresAntigos = avaliadoresAntigos.map((e) => e.user?.id).toSet();
+
+        final descricoesObjetivosNovos = event.objetivos.toSet();
+        final idsAvaliadoresNovos = event.avaliadores.map((u) => u.id).toSet();
+
+        final objetivosParaDeletar = objetivosAntigos.where((obj) => !descricoesObjetivosNovos.contains(obj.description));
+        final descricoesParaAdicionar = descricoesObjetivosNovos.where((desc) => !descricoesObjetivosAntigos.contains(desc));
+
+        final avaliadoresParaDeletar = avaliadoresAntigos.where((ev) => !idsAvaliadoresNovos.contains(ev.user?.id));
+        final usuariosParaAdicionar = event.avaliadores.where((user) => !idsAvaliadoresAntigos.contains(user.id));
+
+        final statusEmAndamento = await AvaliacoesRepository.getStatusById(2);
 
         await Future.wait([
-          ...objetivosParaDeletar
-              .map((obj) => AvaliacoesRepository.deleteObjetivo(obj.id!)),
+          ...objetivosParaDeletar.map((obj) => AvaliacoesRepository.deleteObjetivo(obj.id!)),
+          ...avaliadoresParaDeletar.map((ev) => AvaliacoesRepository.deleteEvaluator(ev.id!)),
+
           ...descricoesParaAdicionar.map((desc) {
-            final novoObjetivo = Objective(
-              description: desc,
-              evaluation: Evaluation(id: event.id),
-              register: DateTime.now().toIso8601String(),
-            );
+            final novoObjetivo = Objective(description: desc, evaluation: Evaluation(id: event.id), register: now);
             return AvaliacoesRepository.createObjetivo(novoObjetivo);
+          }),
+
+          ...usuariosParaAdicionar.map((user) {
+            final novoAvaliador = Evaluator(user: user, evaluation: Evaluation(id: event.id), register: now, status: statusEmAndamento);
+            return AvaliacoesRepository.createAvaliador(novoAvaliador);
           }),
         ]);
 
         emit(AvaliacaoUpdated());
       } catch (e) {
-        emit(AvaliacoesError());
+        emit(AvaliacoesError(message: e.toString()));
       }
     });
 

@@ -1,4 +1,5 @@
 import 'package:flutter_pandyzer/structure/http/models/ApplicationType.dart';
+import 'package:flutter_pandyzer/structure/http/models/User.dart';
 
 abstract class AvaliacoesEvent {}
 
@@ -19,7 +20,7 @@ class CadastrarAvaliacaoEvent extends AvaliacoesEvent {
   String dataFim;
   ApplicationType tipoAplicacao;
   List<String> objetivos;
-  List<String> avaliadores;
+  List<User> avaliadores;
 
   CadastrarAvaliacaoEvent({
     required this.descricao,
@@ -45,6 +46,7 @@ class UpdateAvaliacaoEvent extends AvaliacoesEvent {
   final String dataFim;
   final ApplicationType tipoAplicacao;
   final List<String> objetivos;
+  final List<User> avaliadores; // Adicionado
 
   UpdateAvaliacaoEvent({
     required this.id,
@@ -54,6 +56,7 @@ class UpdateAvaliacaoEvent extends AvaliacoesEvent {
     required this.dataFim,
     required this.tipoAplicacao,
     required this.objetivos,
+    required this.avaliadores, // Adicionado
   });
 }
 

@@ -37,6 +37,21 @@ mixin UsuarioService {
     }
   }
 
+  static Future<List<User>> getAvaliadores() async {
+    try {
+      final response = await HttpClient.get('$rota/avaliadores');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        return data.map((item) => User.fromJson(item)).toList();
+      } else {
+        throw Exception('Erro ao buscar usuarios: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Erro ao buscar usuarios');
+    }
+  }
+
   static Future<bool> getEmail(String email) async {
     try {
       final response = await HttpClient.get('$rota/email/$email');
