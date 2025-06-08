@@ -37,11 +37,14 @@ mixin AvaliacaoService {
     }
   }
 
-  static Future<void> postAvaliacao(Evaluation avaliacao) async {
+  static Future<Evaluation> postAvaliacao(Evaluation avaliacao) async {
     try {
       final response = await HttpClient.post(rota, body: avaliacao.toJson());
 
-      if (response.statusCode != 201) {
+      if (response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        return Evaluation.fromJson(data);
+      } else {
         throw Exception('Erro ao criar avaliação: ${response.statusCode}');
       }
     } catch (e) {
@@ -67,7 +70,7 @@ mixin AvaliacaoService {
 
   static Future<void> deleteAvaliacao(int id) async {
     try {
-      final response = await HttpClient.delete('/$rota/$id');
+      final response = await HttpClient.delete('$rota/$id');
 
       if (response.statusCode != 204) {
         throw Exception('Erro ao deletar avaliação: ${response.statusCode}');

@@ -1,8 +1,10 @@
 import 'package:flutter_pandyzer/structure/http/models/ApplicationType.dart';
 import 'package:flutter_pandyzer/structure/http/models/Evaluation.dart';
+import 'package:flutter_pandyzer/structure/http/models/Evaluator.dart';
 import 'package:flutter_pandyzer/structure/http/models/Objective.dart';
 import 'package:flutter_pandyzer/structure/http/models/User.dart';
 import 'package:flutter_pandyzer/structure/http/services/avaliacao_service.dart';
+import 'package:flutter_pandyzer/structure/http/services/avaliador_service.dart';
 import 'package:flutter_pandyzer/structure/http/services/dominio_service.dart';
 import 'package:flutter_pandyzer/structure/http/services/objetivo_service.dart';
 import 'package:flutter_pandyzer/structure/http/services/usuario_service.dart';
@@ -10,7 +12,7 @@ import 'package:flutter_pandyzer/structure/http/services/usuario_service.dart';
 mixin AvaliacoesRepository {
 
   //AVALIAÇÃO
-  static void createAvaliacao(Evaluation avaliacao) async {
+  static Future<Evaluation> createAvaliacao(Evaluation avaliacao) async {
     return await AvaliacaoService.postAvaliacao(avaliacao);
   }
 
@@ -22,11 +24,11 @@ mixin AvaliacoesRepository {
     return await AvaliacaoService.getAvaliacaoById(id);
   }
 
-  static void putAvaliacao(Evaluation avaliacao) async {
+  static Future<void> putAvaliacao(Evaluation avaliacao) async {
     return await AvaliacaoService.putAvaliacao(avaliacao);
   }
 
-  static void deleteAvaliacao(int id) async {
+  static Future<void> deleteAvaliacao(int id) async {
     return await AvaliacaoService.deleteAvaliacao(id);
   }
 
@@ -40,13 +42,30 @@ mixin AvaliacoesRepository {
   }
 
   //OBEJTIVO
-  static void createObjetivo(Objective objetivo) async {
+  static Future<void> createObjetivo(Objective objetivo) async {
     return await ObjetivoService.postObjetivo(objetivo);
+  }
+
+  static Future<List<Objective>> getObjectivesByEvaluationId(int idEvalution) async{
+    return await ObjetivoService.getObjetivoByIdAvaliacao(idEvalution);
+  }
+
+  static Future<void> deleteObjetivo (int idObjetivo) async {
+    return await ObjetivoService.deleteObjetivo(idObjetivo);
   }
 
   //USUARIO
   static Future<User> getUsuarioById(int id) async {
     return await UsuarioService.getUsuarioById(id);
+  }
+
+  //AVALIADORES
+  static Future<List<Evaluator>> getEvaluatorsByIdEvaluation(int idEvaluation) async {
+    return await AvaliadorService.getEvaluatorsByIdEvaluation(idEvaluation);
+  }
+
+  static Future<void> deleteEvaluator (int id) async {
+    return await AvaliadorService.deleteAvaliador(id);
   }
 
 }

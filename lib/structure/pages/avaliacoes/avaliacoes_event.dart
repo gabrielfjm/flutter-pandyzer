@@ -31,3 +31,33 @@ class CadastrarAvaliacaoEvent extends AvaliacoesEvent {
     required this.avaliadores,
   });
 }
+
+class LoadEvaluationDetailsEvent extends AvaliacoesEvent {
+  final int evaluationId;
+  LoadEvaluationDetailsEvent(this.evaluationId);
+}
+
+class UpdateAvaliacaoEvent extends AvaliacoesEvent {
+  final int id;
+  final String descricao;
+  final String link;
+  final String dataInicio;
+  final String dataFim;
+  final ApplicationType tipoAplicacao;
+  final List<String> objetivos;
+
+  UpdateAvaliacaoEvent({
+    required this.id,
+    required this.descricao,
+    required this.link,
+    required this.dataInicio,
+    required this.dataFim,
+    required this.tipoAplicacao,
+    required this.objetivos,
+  });
+}
+
+class DeleteAvaliacaoEvent extends AvaliacoesEvent {
+  final int evaluationId;
+  DeleteAvaliacaoEvent(this.evaluationId);
+}

@@ -17,4 +17,19 @@ class AppConvert {
       return AppStrings.hifen;
     }
   }
+
+  /// Converte uma data no formato "dd/MM/yyyy" para uma string no formato ISO 8601.
+  static String? convertDateToIso(String? date) {
+    if (date == null || date.isEmpty) {
+      return null;
+    }
+    try {
+      final DateFormat inputFormat = DateFormat('dd/MM/yyyy');
+      final DateTime dateTime = inputFormat.parse(date);
+      // Formato que o backend Java entende
+      return dateTime.toIso8601String();
+    } catch (e) {
+      return null;
+    }
+  }
 }

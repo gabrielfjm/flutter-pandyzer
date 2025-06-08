@@ -1,49 +1,69 @@
 import 'package:flutter_pandyzer/structure/http/models/ApplicationType.dart';
 import 'package:flutter_pandyzer/structure/http/models/Evaluation.dart';
+import 'package:flutter_pandyzer/structure/http/models/Evaluator.dart';
+import 'package:flutter_pandyzer/structure/http/models/Objective.dart';
 
 abstract class AvaliacoesState {
-  List<ApplicationType> dominios;
-  List<Evaluation> avaliacoes;
+  final List<ApplicationType> dominios;
+  final List<Evaluation> avaliacoes;
+  final Evaluation? evaluation;
+  final List<Objective> objectives;
+  final List<Evaluator> evaluators;
 
-  AvaliacoesState({required this.dominios, required this.avaliacoes});
+  AvaliacoesState({
+    this.dominios = const [],
+    this.avaliacoes = const [],
+    this.evaluation,
+    this.objectives = const [],
+    this.evaluators = const [],
+  });
 }
 
-class AvaliacoesInitial extends AvaliacoesState {
-  AvaliacoesInitial() : super(
-    dominios: [],
-    avaliacoes: [],
-  );
-}
+class AvaliacoesInitial extends AvaliacoesState {}
 
 class AvaliacoesLoading extends AvaliacoesState {
-  AvaliacoesLoading() : super(
-    dominios: [],
-    avaliacoes: [],
-  );
-}
-
-class AvaliacaoCamposLoaded extends AvaliacoesState{
-  AvaliacaoCamposLoaded({required super.dominios}) : super(
-    avaliacoes: [],
-  );
-}
-
-class AvaliacaoCadastrada extends AvaliacoesState{
-  AvaliacaoCadastrada() : super(
-    dominios: [],
-    avaliacoes: [],
+  AvaliacoesLoading({AvaliacoesState? oldState})
+      : super(
+    avaliacoes: oldState?.avaliacoes ?? [],
+    dominios: oldState?.dominios ?? [],
   );
 }
 
 class AvaliacoesLoaded extends AvaliacoesState {
-  AvaliacoesLoaded({required super.avaliacoes}) : super(
-    dominios: [],
+  AvaliacoesLoaded({required List<Evaluation> avaliacoes})
+      : super(avaliacoes: avaliacoes);
+}
+
+class AvaliacaoCamposLoaded extends AvaliacoesState {
+  AvaliacaoCamposLoaded({required List<ApplicationType> dominios})
+      : super(dominios: dominios);
+}
+
+class EvaluationDetailsLoaded extends AvaliacoesState {
+  EvaluationDetailsLoaded({
+    required Evaluation evaluation,
+    required List<Objective> objectives,
+    required List<Evaluator> evaluators,
+    required List<ApplicationType> dominios,
+    required List<Evaluation> avaliacoes,
+  }) : super(
+    evaluation: evaluation,
+    objectives: objectives,
+    evaluators: evaluators,
+    dominios: dominios,
+    avaliacoes: avaliacoes,
   );
 }
 
+class AvaliacaoCadastrada extends AvaliacoesState {}
+
+class AvaliacaoUpdated extends AvaliacoesState {}
+
+class AvaliacaoDeleted extends AvaliacoesState {
+  AvaliacaoDeleted({required List<Evaluation> avaliacoes}) : super(avaliacoes: avaliacoes);
+}
+
 class AvaliacoesError extends AvaliacoesState {
-  AvaliacoesError() : super(
-    dominios: [],
-    avaliacoes: [],
-  );
+  final String? message;
+  AvaliacoesError({this.message});
 }

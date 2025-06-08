@@ -1,9 +1,9 @@
-import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_pandyzer/core/app_colors.dart';
 import 'package:flutter_pandyzer/core/app_font_size.dart';
 import 'package:flutter_pandyzer/core/app_sizes.dart';
 import 'package:flutter_pandyzer/core/app_spacing.dart';
+import 'package:flutter_pandyzer/core/app_strings.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_sized_box.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_text.dart';
 
@@ -14,6 +14,8 @@ class AppDropdown<T> extends StatelessWidget {
   final ValueChanged<T?> onChanged;
   final double? height;
   final double? width;
+  final String Function(T)? itemLabelBuilder;
+  final String? defaultLabel;
 
   const AppDropdown({
     super.key,
@@ -23,11 +25,14 @@ class AppDropdown<T> extends StatelessWidget {
     required this.onChanged,
     this.height,
     this.width,
+    this.itemLabelBuilder,
+    this.defaultLabel,
   });
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
+      height: height ?? 75,
       width: width ?? 820,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -39,35 +44,41 @@ class AppDropdown<T> extends StatelessWidget {
             fontWeight: FontWeight.bold,
           ),
           appSizedBox(height: AppSpacing.small),
-          DropdownButtonFormField2<T>(
-            isExpanded: true,
+          DropdownButtonFormField<T>(
             value: value,
-            items: items
-                .map((e) => DropdownMenuItem<T>(
-              value: e,
-              child: Text(
-                e.toString(),
-                style: TextStyle(fontSize: AppFontSize.fs15),
-              ),
-            ))
-                .toList(),
-            onChanged: onChanged,
+            style: TextStyle(
+              color: AppColors.black,
+              fontSize: AppFontSize.fs15,
+            ),
             decoration: InputDecoration(
-              contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 0),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppSizes.s10),
-                borderSide: BorderSide(color: AppColors.black),
-              ),
-            ),
-            dropdownStyleData: DropdownStyleData(
-              decoration: BoxDecoration(
-                color: AppColors.white,
+                borderSide: BorderSide(color: AppColors.black, width: 1),
                 borderRadius: BorderRadius.circular(AppSizes.s10),
               ),
-              offset: const Offset(0, 0),
-              isOverButton: false,
-              elevation: 4,
+              focusedBorder: OutlineInputBorder(
+                borderSide: BorderSide(color: AppColors.black, width: 1),
+                borderRadius: BorderRadius.circular(AppSizes.s10),
+              ),
+              hintText: defaultLabel ?? AppStrings.selecioneUmaOpcao,
+              hintStyle: TextStyle(color: AppColors.grey800),
+              focusColor: AppColors.black,
             ),
+            hint: appText(
+              text: defaultLabel ?? AppStrings.selecioneUmaOpcao,
+              color: AppColors.grey800,
+              fontSize: AppFontSize.fs15,
+            ),
+            items: items.map(
+                  (item) => DropdownMenuItem<T>(
+                value: item,
+                child: Text(
+                  itemLabelBuilder != null
+                      ? itemLabelBuilder!(item)
+                      : item.toString(),
+                ),
+              ),
+            ).toList(),
+            onChanged: onChanged,
           ),
         ],
       ),

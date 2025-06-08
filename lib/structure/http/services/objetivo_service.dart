@@ -37,6 +37,21 @@ mixin ObjetivoService {
     }
   }
 
+  static Future<List<Objective>> getObjetivoByIdAvaliacao(int id) async {
+    try {
+      final response = await HttpClient.get('$rota/evaluation/$id');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        return data.map((item) => Objective.fromJson(item)).toList();
+      } else {
+        throw Exception('Erro ao buscar objetivo: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Erro ao buscar objetivo');
+    }
+  }
+
   static Future<void> postObjetivo(Objective objetivo) async {
     try {
       final response = await HttpClient.post(rota, body: objetivo.toJson());

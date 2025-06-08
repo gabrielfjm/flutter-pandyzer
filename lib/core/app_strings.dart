@@ -58,9 +58,14 @@ class AppStrings {
   static const String mensagemNomeEstaVazio = 'Campo de Nome está vazio!';
   static const String mensagemSenhaEstaVazia = 'Campo de Senha está vazio!';
   static const String mensagemConfirmarSenhaEstaVazio = 'Campo de Confirmar Senha está vazio!';
+  static const String mensagemDescricaoEstaVazio = 'Campo de Descrição está vazio!';
   static const String mensagemSelecioneOTipoDeUsuario = 'Selecione o Tipo de Usuário!';
   static const String mensagemSenhasInformadasNaoCoincidem = 'Senhas Informadas não Coincidem!';
   static const String mensagemDeErro = 'Houve um erro inesperado! Tente novamente mais tarde!';
+  static const String mensagemLinkEstaVazio = 'Campo de Link está vazio!';
+  static const String mensagemDataInicialEstaVazio = 'Campo de Data Inicial está vazio!';
+  static const String mensagemDataFinalEstaVazio = 'Campo de Data Final está vazio!';
+  static const String mensagemObjetivos = 'Uma avaliação deve ao menos ter um objetivo cadastrado!';
 
   // ================== N ==================
   static const String nomeDoUsuario = 'Nome do Usuário';
@@ -84,6 +89,8 @@ class AppStrings {
   static const String salvar = 'Salvar';
   static const String senha = 'Senha';
   static const String selecioneOTipoDeUsuario = 'Selecione o Tipo de Usuário';
+  static const String selecioneUmaOpcao = 'Selecione uma Opção!';
+  static const String selecioneUmDominio = 'Selecione um Domínio!';
 
   // ================== T ==================
   static const String tipoDeAplicacao = 'Tipo de Aplicação';
