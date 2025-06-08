@@ -12,6 +12,7 @@ class Problem {
   Heuristic? heuristic;
   Severity? severity;
   User? user;
+  String? imageBase64;
 
   Problem(
       {this.id,
@@ -21,7 +22,9 @@ class Problem {
         this.objective,
         this.heuristic,
         this.severity,
-        this.user});
+        this.user,
+        this.imageBase64,
+      });
 
   Problem.fromJson(Map<String, dynamic> json) {
     id = json['id'];
@@ -38,6 +41,7 @@ class Problem {
         ? new Severity.fromJson(json['severity'])
         : null;
     user = json['user'] != null ? new User.fromJson(json['user']) : null;
+    imageBase64 = json['imageBase64'];
   }
 
   Map<String, dynamic> toJson() {
@@ -58,6 +62,7 @@ class Problem {
     if (this.user != null) {
       data['user'] = this.user!.toJson();
     }
+    data['imageBase64'] = imageBase64;
     return data;
   }
 }
