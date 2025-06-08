@@ -11,6 +11,7 @@ import 'package:flutter_pandyzer/structure/widgets/app_text.dart';
 
 class AvaliacaoCard extends StatelessWidget {
   final Evaluation evaluation;
+  final VoidCallback onPerform;
   final VoidCallback onView;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
@@ -18,6 +19,7 @@ class AvaliacaoCard extends StatelessWidget {
   const AvaliacaoCard({
     super.key,
     required this.evaluation,
+    required this.onPerform,
     required this.onView,
     required this.onEdit,
     required this.onDelete,
@@ -83,14 +85,22 @@ class AvaliacaoCard extends StatelessWidget {
                   ),
                   const SizedBox(width: AppSizes.s10),
                   IconButton(
+                    tooltip: 'Realizar Avaliação',
+                    icon: Icon(AppIcons.add, color: AppColors.white), // Exemplo de ícone
+                    onPressed: onPerform,
+                  ),
+                  IconButton(
+                    tooltip: 'Visualizar Avaliação',
                     icon: Icon(AppIcons.view, color: AppColors.white),
                     onPressed: onView,
                   ),
                   IconButton(
+                    tooltip: 'Editar Avaliação',
                     icon: Icon(AppIcons.edit, color: AppColors.white),
                     onPressed: onEdit,
                   ),
                   IconButton(
+                    tooltip: 'Excluir Avaliação',
                     icon: Icon(AppIcons.delete, color: AppColors.red300),
                     onPressed: onDelete,
                   ),

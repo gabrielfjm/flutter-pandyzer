@@ -13,6 +13,7 @@ import 'package:flutter_pandyzer/structure/pages/avaliacoes/avaliacoes_bloc.dart
 import 'package:flutter_pandyzer/structure/pages/avaliacoes/avaliacoes_event.dart';
 import 'package:flutter_pandyzer/structure/pages/avaliacoes/avaliacoes_state.dart';
 import 'package:flutter_pandyzer/structure/pages/avaliacoes/modal/avaliacoes_detalhes_modal.dart';
+import 'package:flutter_pandyzer/structure/pages/problema/problema_page.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_container.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_error.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_loading.dart';
@@ -68,6 +69,10 @@ class _AvaliacoesPageState extends State<AvaliacoesPage> {
 
   void _viewAvaliacao(int evaluationId) {
     _bloc.add(LoadEvaluationDetailsEvent(evaluationId));
+  }
+
+  void _performAvaliacao(int evaluationId) {
+    NavigationManager().goTo(ProblemaPage(evaluationId: evaluationId));
   }
 
   void _showDetailsModal(BuildContext context, Evaluation evaluation,
@@ -166,6 +171,7 @@ class _AvaliacoesPageState extends State<AvaliacoesPage> {
       itemBuilder: (context, index) {
         return AvaliacaoCard(
           evaluation: avaliacoes[index],
+          onPerform: () => _performAvaliacao(avaliacoes[index].id!),
           onView: () => _viewAvaliacao(avaliacoes[index].id!),
           onEdit: () => _editAvaliacao(avaliacoes[index].id!),
           onDelete: () => _deleteAvaliacao(avaliacoes[index]),
