@@ -1,13 +1,14 @@
+import 'package:flutter_pandyzer/structure/http/models/Status.dart';
+
 import 'Evaluation.dart';
 import 'User.dart';
-import 'UserType.dart';
 
 class Evaluator {
   int? id;
   String? register;
   User? user;
   Evaluation? evaluation;
-  UserType? status;
+  Status? status;
 
   Evaluator({this.id, this.register, this.user, this.evaluation, this.status});
 
@@ -19,7 +20,7 @@ class Evaluator {
         ? new Evaluation.fromJson(json['evaluation'])
         : null;
     status =
-    json['status'] != null ? new UserType.fromJson(json['status']) : null;
+    json['status'] != null ? new Status.fromJson(json['status']) : null;
   }
 
   Map<String, dynamic> toJson() {

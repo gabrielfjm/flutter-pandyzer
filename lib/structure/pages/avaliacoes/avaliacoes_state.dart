@@ -2,6 +2,7 @@ import 'package:flutter_pandyzer/structure/http/models/ApplicationType.dart';
 import 'package:flutter_pandyzer/structure/http/models/Evaluation.dart';
 import 'package:flutter_pandyzer/structure/http/models/Evaluator.dart';
 import 'package:flutter_pandyzer/structure/http/models/Objective.dart';
+import 'package:flutter_pandyzer/structure/http/models/User.dart';
 
 abstract class AvaliacoesState {
   final List<ApplicationType> dominios;
@@ -9,6 +10,7 @@ abstract class AvaliacoesState {
   final Evaluation? evaluation;
   final List<Objective> objectives;
   final List<Evaluator> evaluators;
+  final List<User> availableEvaluators;
 
   AvaliacoesState({
     this.dominios = const [],
@@ -16,6 +18,7 @@ abstract class AvaliacoesState {
     this.evaluation,
     this.objectives = const [],
     this.evaluators = const [],
+    this.availableEvaluators = const [],
   });
 }
 
@@ -26,6 +29,7 @@ class AvaliacoesLoading extends AvaliacoesState {
       : super(
     avaliacoes: oldState?.avaliacoes ?? [],
     dominios: oldState?.dominios ?? [],
+    availableEvaluators: oldState?.availableEvaluators ?? [],
   );
 }
 
@@ -35,8 +39,13 @@ class AvaliacoesLoaded extends AvaliacoesState {
 }
 
 class AvaliacaoCamposLoaded extends AvaliacoesState {
-  AvaliacaoCamposLoaded({required List<ApplicationType> dominios})
-      : super(dominios: dominios);
+  AvaliacaoCamposLoaded({
+    required List<ApplicationType> dominios,
+    required List<User> availableEvaluators,
+  }) : super(
+    dominios: dominios,
+    availableEvaluators: availableEvaluators,
+  );
 }
 
 class EvaluationDetailsLoaded extends AvaliacoesState {
@@ -46,19 +55,19 @@ class EvaluationDetailsLoaded extends AvaliacoesState {
     required List<Evaluator> evaluators,
     required List<ApplicationType> dominios,
     required List<Evaluation> avaliacoes,
+    required List<User> availableEvaluators,
   }) : super(
     evaluation: evaluation,
     objectives: objectives,
     evaluators: evaluators,
     dominios: dominios,
     avaliacoes: avaliacoes,
+    availableEvaluators: availableEvaluators,
   );
 }
 
 class AvaliacaoCadastrada extends AvaliacoesState {}
-
 class AvaliacaoUpdated extends AvaliacoesState {}
-
 class AvaliacaoDeleted extends AvaliacoesState {
   AvaliacaoDeleted({required List<Evaluation> avaliacoes}) : super(avaliacoes: avaliacoes);
 }

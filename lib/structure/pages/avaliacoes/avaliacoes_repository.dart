@@ -2,11 +2,13 @@ import 'package:flutter_pandyzer/structure/http/models/ApplicationType.dart';
 import 'package:flutter_pandyzer/structure/http/models/Evaluation.dart';
 import 'package:flutter_pandyzer/structure/http/models/Evaluator.dart';
 import 'package:flutter_pandyzer/structure/http/models/Objective.dart';
+import 'package:flutter_pandyzer/structure/http/models/Status.dart';
 import 'package:flutter_pandyzer/structure/http/models/User.dart';
 import 'package:flutter_pandyzer/structure/http/services/avaliacao_service.dart';
 import 'package:flutter_pandyzer/structure/http/services/avaliador_service.dart';
 import 'package:flutter_pandyzer/structure/http/services/dominio_service.dart';
 import 'package:flutter_pandyzer/structure/http/services/objetivo_service.dart';
+import 'package:flutter_pandyzer/structure/http/services/status_service.dart';
 import 'package:flutter_pandyzer/structure/http/services/usuario_service.dart';
 
 mixin AvaliacoesRepository {
@@ -59,13 +61,26 @@ mixin AvaliacoesRepository {
     return await UsuarioService.getUsuarioById(id);
   }
 
+  static Future<List<User>> getUsuariosAvaliadores () async {
+    return await UsuarioService.getAvaliadores();
+  }
+
   //AVALIADORES
+  static Future<void> createAvaliador(Evaluator avaliador) async {
+    return await AvaliadorService.postAvaliador(avaliador);
+  }
+
   static Future<List<Evaluator>> getEvaluatorsByIdEvaluation(int idEvaluation) async {
     return await AvaliadorService.getEvaluatorsByIdEvaluation(idEvaluation);
   }
 
   static Future<void> deleteEvaluator (int id) async {
     return await AvaliadorService.deleteAvaliador(id);
+  }
+
+  //STATUS
+  static Future<Status> getStatusById(int id) async {
+    return await StatusService.getStatusById(id);
   }
 
 }
