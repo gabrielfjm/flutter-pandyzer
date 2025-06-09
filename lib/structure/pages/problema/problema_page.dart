@@ -135,6 +135,40 @@ class _ProblemaPageState extends State<ProblemaPage> {
   }
 
   Future<void> _handleSave() async {
+    bool allFormsAreValid = true;
+
+    // Se não há nenhum problema reportado, não há nada a salvar.
+    if (_reportedProblemForms.values.every((list) => list.isEmpty)) {
+      showAppToast(context: context, message: "Nenhum problema foi reportado para salvar.");
+      return;
+    }
+
+    // Itera sobre todos os formulários de problemas criados
+    for (var formList in _reportedProblemForms.values) {
+      for (var form in formList) {
+        if (form.problem.heuristic == null ||
+            form.descriptionController.text.trim().isEmpty ||
+            form.recommendationController.text.trim().isEmpty ||
+            form.problem.severity == null) {
+          allFormsAreValid = false;
+          break; // Sai do loop interno se encontrar um formulário inválido
+        }
+      }
+      if (!allFormsAreValid) {
+        break; // Sai do loop externo também
+      }
+    }
+
+    if (!allFormsAreValid) {
+      showAppToast(
+        context: context,
+        message: "Revise os campos dos formulários! Todos devem ser preenchidos!",
+        isError: true,
+      );
+      return;
+    }
+
+    // Se a validação passar, continua com a lógica de salvar
     final Map<int, List<Problem>> problemsToSave = {};
     for (var entry in _reportedProblemForms.entries) {
       final objectiveId = entry.key;
