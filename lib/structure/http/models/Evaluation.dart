@@ -12,7 +12,7 @@ class Evaluation {
   User? user;
   int? completedEvaluationsCount;
 
-  // Campos que virão da sua API para controlar a UI
+  // Campos calculados no frontend para controlar a UI
   bool isCurrentUserAnEvaluator;
   bool currentUserHasProblems;
 
@@ -26,8 +26,8 @@ class Evaluation {
     this.applicationType,
     this.user,
     this.completedEvaluationsCount,
-    this.isCurrentUserAnEvaluator = false, // Valor padrão
-    this.currentUserHasProblems = false, // Valor padrão
+    this.isCurrentUserAnEvaluator = false,
+    this.currentUserHasProblems = false,
   });
 
   factory Evaluation.fromJson(Map<String, dynamic> json) {
@@ -43,20 +43,18 @@ class Evaluation {
           : null,
       user: json['user'] != null ? User.fromJson(json['user']) : null,
       completedEvaluationsCount: json['completedEvaluationsCount'],
-      // Lendo os novos campos do JSON da API
-      isCurrentUserAnEvaluator: json['isCurrentUserAnEvaluator'] ?? false,
-      currentUserHasProblems: json['currentUserHasProblems'] ?? false,
+      // Estes campos não vêm do JSON, serão populados no BLoC
     );
   }
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = <String, dynamic>{};
-    data['id'] = this.id;
-    data['description'] = this.description;
-    data['startDate'] = this.startDate;
-    data['finalDate'] = this.finalDate;
-    data['link'] = this.link;
-    data['register'] = this.register;
+    data['id'] = id;
+    data['description'] = description;
+    data['startDate'] = startDate;
+    data['finalDate'] = finalDate;
+    data['link'] = link;
+    data['register'] = register;
     if (applicationType != null) {
       data['applicationType'] = applicationType!.toJson();
     }

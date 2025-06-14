@@ -42,6 +42,10 @@ class ProblemaLoaded extends ProblemaState {
 
 class ProblemaSaveSuccess extends ProblemaState {}
 
+class ProblemaFinalizeSuccess extends ProblemaState {
+  const ProblemaFinalizeSuccess() : super();
+}
+
 class ProblemaError extends ProblemaState {
   final String message;
   const ProblemaError(this.message);

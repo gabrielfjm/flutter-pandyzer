@@ -17,30 +17,49 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
     on<LoadAvaliacoesEvent>((event, emit) async {
       emit(AvaliacoesLoading(oldState: state));
       try {
+        final prefs = await SharedPreferences.getInstance();
+        final currentUserId = prefs.getString('userId');
+
         // 1. Busca a lista principal de avaliações
         List<Evaluation> avaliacoes = await AvaliacoesRepository.getAvaliacoes();
 
-        // 2. Para cada avaliação, busca a contagem de avaliadores concluídos
-        // Usamos Future.wait para fazer as chamadas em paralelo e melhorar a performance
-        final countFutures = avaliacoes.map((avaliacao) async {
-          if (avaliacao.id != null) {
-            final evaluators = await AvaliacoesRepository.getEvaluatorsByIdEvaluation(avaliacao.id!);
-            // Filtra e conta aqueles com status "Concluída" (assumindo ID 2)
-            final completedCount = evaluators.where((e) => e.status?.id == 2).length;
-            // Atribui a contagem ao objeto no Flutter
-            avaliacao.completedEvaluationsCount = completedCount;
+        // 2. Para cada avaliação, verifica permissões e status em paralelo
+        final processingFutures = avaliacoes.map((avaliacao) async {
+          if (avaliacao.id == null) return;
+
+          // Busca os avaliadores desta avaliação
+          final evaluators = await AvaliacoesRepository.getEvaluatorsByIdEvaluation(avaliacao.id!);
+
+          // a. Verifica se o usuário logado é um dos avaliadores
+          if (currentUserId != null) {
+            avaliacao.isCurrentUserAnEvaluator = evaluators.any((e) => e.user?.id.toString() == currentUserId);
+          }
+
+          // b. Conta quantos avaliadores concluíram (status id 2)
+          avaliacao.completedEvaluationsCount = evaluators.where((e) => e.status?.id == 2).length;
+
+          // c. Verifica se o avaliador logado já tem problemas reportados
+          if (avaliacao.isCurrentUserAnEvaluator) {
+            final objectives = await AvaliacoesRepository.getObjectivesByEvaluationId(avaliacao.id!);
+            int problemCount = 0;
+            for (var objective in objectives) {
+              final problems = await AvaliacoesRepository.getProblemsByIdObjetivoAndIdEvaluator(objective.id!, int.parse(currentUserId!));
+              problemCount += problems.length;
+            }
+            avaliacao.currentUserHasProblems = problemCount > 0;
           }
         }).toList();
 
-        // 3. Espera todas as chamadas de contagem terminarem
-        await Future.wait(countFutures);
+        // 3. Espera todas as verificações terminarem
+        await Future.wait(processingFutures);
 
-        // 4. Emite o estado com a lista de avaliações, agora com a contagem populada
+        // 4. Emite o estado com a lista de avaliações enriquecida com os novos dados
         emit(AvaliacoesLoaded(avaliacoes: avaliacoes));
       } catch (e) {
         emit(AvaliacoesError(message: e.toString()));
       }
     });
+
 
     on<LoadCamposCadastroAvaliacao>((event, emit) async {
       emit(AvaliacoesLoading());

@@ -99,5 +99,19 @@ class ProblemaBloc extends Bloc<ProblemaEvent, ProblemaState> {
         emit(ProblemaError(e.toString()));
       }
     });
+
+    on<FinalizeEvaluation>((event, emit) async {
+      emit(ProblemaLoading());
+      try {
+        await ProblemaRepository.updateEvaluatorStatus(
+          event.evaluatorId,
+          event.statusId,
+          event.evaluationId,
+        );
+        emit(const ProblemaFinalizeSuccess());
+      } catch (e) {
+        emit(ProblemaError(e.toString()));
+      }
+    });
   }
 }

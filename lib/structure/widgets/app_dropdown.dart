@@ -1,9 +1,9 @@
+import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_pandyzer/core/app_colors.dart';
 import 'package:flutter_pandyzer/core/app_font_size.dart';
 import 'package:flutter_pandyzer/core/app_sizes.dart';
 import 'package:flutter_pandyzer/core/app_spacing.dart';
-import 'package:flutter_pandyzer/core/app_strings.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_sized_box.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_text.dart';
 
@@ -15,26 +15,23 @@ class AppDropdown<T> extends StatelessWidget {
   final double? height;
   final double? width;
   final String Function(T)? itemLabelBuilder;
-  final String? defaultLabel;
+  final bool enabled;
 
   const AppDropdown({
     super.key,
     required this.label,
     required this.value,
     required this.items,
-    this.onChanged, // 2. Remove o 'required'
+    this.onChanged,
     this.height,
     this.width,
     this.itemLabelBuilder,
-    this.defaultLabel,
+    this.enabled = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    final bool isEnabled = onChanged != null;
-
     return SizedBox(
-      height: height ?? 75,
       width: width ?? 820,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -46,46 +43,47 @@ class AppDropdown<T> extends StatelessWidget {
             fontWeight: FontWeight.bold,
           ),
           appSizedBox(height: AppSpacing.small),
-          DropdownButtonFormField<T>(
+          DropdownButtonFormField2<T>(
+            isExpanded: true,
             value: value,
-            style: TextStyle(
-              color: isEnabled ? AppColors.black : AppColors.grey700,
-              fontSize: AppFontSize.fs15,
-            ),
+            items: items
+                .map((e) => DropdownMenuItem<T>(
+              value: e,
+              child: Text(
+                itemLabelBuilder != null ? itemLabelBuilder!(e) : e.toString(),
+                style: const TextStyle(fontSize: AppFontSize.fs15),
+              ),
+            ))
+                .toList(),
+            onChanged: enabled ? onChanged : null, // 5. Desabilita a ação se 'enabled' for false
             decoration: InputDecoration(
-              filled: !isEnabled, // 3. Adiciona um fundo cinza quando desabilitado
+              filled: !enabled, // 6. Preenche com cor de fundo quando desabilitado
               fillColor: AppColors.grey200,
+              contentPadding:
+              const EdgeInsets.symmetric(vertical: 12, horizontal: 0),
               border: OutlineInputBorder(
-                borderSide: BorderSide(color: AppColors.black, width: 1),
                 borderRadius: BorderRadius.circular(AppSizes.s10),
+                borderSide: const BorderSide(color: AppColors.black),
               ),
-              focusedBorder: OutlineInputBorder(
-                borderSide: BorderSide(color: AppColors.black, width: 1),
+              enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(AppSizes.s10),
+                borderSide: BorderSide(color: AppColors.grey500),
               ),
-              disabledBorder: OutlineInputBorder( // 4. Estilo da borda quando desabilitado
-                borderSide: BorderSide(color: AppColors.grey300, width: 1),
+              disabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(AppSizes.s10),
+                borderSide: BorderSide(color: AppColors.grey300),
               ),
-              hintText: defaultLabel ?? AppStrings.selecioneUmaOpcao,
-              hintStyle: TextStyle(color: AppColors.grey800),
             ),
-            hint: appText(
-              text: defaultLabel ?? AppStrings.selecioneUmaOpcao,
-              color: AppColors.grey800,
-              fontSize: AppFontSize.fs15,
-            ),
-            items: items.map(
-                  (item) => DropdownMenuItem<T>(
-                value: item,
-                child: Text(
-                  itemLabelBuilder != null
-                      ? itemLabelBuilder!(item)
-                      : item.toString(),
-                ),
+            dropdownStyleData: DropdownStyleData(
+              decoration: BoxDecoration(
+                color: AppColors.white,
+                borderRadius: BorderRadius.circular(AppSizes.s10),
               ),
-            ).toList(),
-            onChanged: onChanged, // 5. Passa o onChanged (que pode ser nulo)
+            ),
+            buttonStyleData: ButtonStyleData(
+              padding: const EdgeInsets.only(right: 8),
+              height: height ?? 48,
+            ),
           ),
         ],
       ),

@@ -84,11 +84,6 @@ class AvaliacaoCard extends StatelessWidget {
                     color: AppColors.white,
                   ),
                   const SizedBox(width: AppSpacing.normal),
-
-                  // ===============================================
-                  // LÓGICA DE VISIBILIDADE DOS BOTÕES
-                  // ===============================================
-
                   // 1. Botão "Realizar Avaliação"
                   if (evaluation.isCurrentUserAnEvaluator)
                     IconButton(

@@ -174,7 +174,7 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
           ),
           IconButton(
             icon: const Icon(Icons.close, color: AppColors.white),
-            onPressed: () => NavigationManager().goTo(AvaliacoesPage()),
+            onPressed: () => Navigator.of(context).pop(),
           ),
         ],
       ),
@@ -267,7 +267,7 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
                     onPressed: () async {
                       try {
                         await FileDownloaderService.downloadAssetPdf(
-                          assetPath: 'assets/pdf/relatorio_modelo.pdf',
+                          assetPath: 'pdf/relatorio.pdf',
                           downloadFileName: 'Relatorio_${widget.evaluation.description?.replaceAll(' ', '_')}.pdf',
                         );
                       } catch (e) {
@@ -298,7 +298,7 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
                 // Botão de Editar (apenas para o próprio avaliador)
                 if (isThisEvaluator)
                   IconButton(
-                    tooltip: 'Editar Meus Problemas',
+                    tooltip: 'Minha Avaliação',
                     onPressed: () {
                       Navigator.of(context).pop();
                       NavigationManager().goTo(
@@ -309,7 +309,7 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
                         ),
                       );
                     },
-                    icon: const Icon(AppIcons.edit, color: AppColors.white, size: 18),
+                    icon: const Icon(Icons.playlist_add_check, color: AppColors.white, size: 18),
                   ),
 
                 // Botão de Excluir (apenas para o dono da avaliação)

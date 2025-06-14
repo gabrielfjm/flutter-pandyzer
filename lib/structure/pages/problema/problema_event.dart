@@ -13,3 +13,10 @@ class SaveProblemas extends ProblemaEvent {
   final Map<int, List<Problem>> problemsToSave;
   SaveProblemas(this.problemsToSave);
 }
+
+class FinalizeEvaluation extends ProblemaEvent {
+  final int evaluatorId;
+  final int statusId;
+  final int evaluationId;
+  FinalizeEvaluation({required this.evaluatorId, required this.statusId, required this.evaluationId});
+}
