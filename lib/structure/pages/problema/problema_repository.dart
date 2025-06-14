@@ -37,4 +37,8 @@ mixin ProblemaRepository {
     return await ProblemaService.postProblema(problema);
   }
 
+  static Future<List<Problem>> getProblemsByIdObjetivoAndIdEvaluator(int idObjetivo, int idEvaluator) async {
+    return await ProblemaService.getProblemsByIdObjetivoAndIdEvaluator(idObjetivo, idEvaluator);
+  }
+
 }

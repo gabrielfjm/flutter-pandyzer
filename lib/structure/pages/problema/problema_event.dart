@@ -4,7 +4,9 @@ abstract class ProblemaEvent {}
 
 class LoadProblemaPageData extends ProblemaEvent {
   final int evaluationId;
-  LoadProblemaPageData(this.evaluationId);
+  final int evaluatorId;
+
+  LoadProblemaPageData({required this.evaluationId, required this.evaluatorId});
 }
 
 class SaveProblemas extends ProblemaEvent {

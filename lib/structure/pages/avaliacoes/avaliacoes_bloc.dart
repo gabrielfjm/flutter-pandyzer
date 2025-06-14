@@ -15,12 +15,30 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
 
   AvaliacoesBloc() : super(AvaliacoesInitial()) {
     on<LoadAvaliacoesEvent>((event, emit) async {
-      emit(AvaliacoesLoading());
-      try{
+      emit(AvaliacoesLoading(oldState: state));
+      try {
+        // 1. Busca a lista principal de avaliações
         List<Evaluation> avaliacoes = await AvaliacoesRepository.getAvaliacoes();
+
+        // 2. Para cada avaliação, busca a contagem de avaliadores concluídos
+        // Usamos Future.wait para fazer as chamadas em paralelo e melhorar a performance
+        final countFutures = avaliacoes.map((avaliacao) async {
+          if (avaliacao.id != null) {
+            final evaluators = await AvaliacoesRepository.getEvaluatorsByIdEvaluation(avaliacao.id!);
+            // Filtra e conta aqueles com status "Concluída" (assumindo ID 2)
+            final completedCount = evaluators.where((e) => e.status?.id == 2).length;
+            // Atribui a contagem ao objeto no Flutter
+            avaliacao.completedEvaluationsCount = completedCount;
+          }
+        }).toList();
+
+        // 3. Espera todas as chamadas de contagem terminarem
+        await Future.wait(countFutures);
+
+        // 4. Emite o estado com a lista de avaliações, agora com a contagem populada
         emit(AvaliacoesLoaded(avaliacoes: avaliacoes));
       } catch (e) {
-        emit(AvaliacoesError());
+        emit(AvaliacoesError(message: e.toString()));
       }
     });
 
@@ -83,7 +101,7 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
           await AvaliacoesRepository.createObjetivo(obj);
         }
 
-        Status statusEmAndamento = await AvaliacoesRepository.getStatusById(2);
+        Status statusEmAndamento = await AvaliacoesRepository.getStatusById(1);
 
         for (final userAvaliador in finalAvaliadores) {
           final novoAvaliador = Evaluator(
@@ -216,6 +234,34 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
         final updatedList = await AvaliacoesRepository.getAvaliacoes();
 
         emit(AvaliacaoDeleted(avaliacoes: updatedList));
+      } catch (e) {
+        emit(AvaliacoesError(message: e.toString()));
+      }
+    });
+
+    on<DeleteEvaluatorAndProblems>((event, emit) async {
+      final currentState = state;
+      emit(AvaliacoesLoading(oldState: currentState));
+      try {
+        // Busca todos os objetivos da avaliação para saber onde procurar os problemas
+        final objectives = await AvaliacoesRepository.getObjectivesByEvaluationId(event.evaluationId);
+
+        // Deleta todos os problemas feitos por este avaliador nesta avaliação
+        await Future.forEach(objectives, (objective) async {
+          if (objective.id != null) {
+            // Pega os problemas do avaliador para este objetivo
+            final problemsToDelete = await AvaliacoesRepository.getProblemsByIdObjetivoAndIdEvaluator(objective.id!, event.evaluatorId);
+            // Deleta cada problema encontrado
+            await Future.wait(problemsToDelete.map((p) => AvaliacoesRepository.deleteProblem(p.id!)));
+          }
+        });
+
+        // Após deletar os problemas, deleta o registro do avaliador
+        await AvaliacoesRepository.deleteEvaluator(event.evaluatorId);
+
+        // Recarrega os dados da avaliação para refletir a remoção do avaliador
+        add(LoadEvaluationDetailsEvent(event.evaluationId));
+
       } catch (e) {
         emit(AvaliacoesError(message: e.toString()));
       }

@@ -1,6 +1,7 @@
 import 'package:flutter_pandyzer/structure/http/models/Evaluation.dart';
 import 'package:flutter_pandyzer/structure/http/models/Heuristic.dart';
 import 'package:flutter_pandyzer/structure/http/models/Objective.dart';
+import 'package:flutter_pandyzer/structure/http/models/Problem.dart';
 import 'package:flutter_pandyzer/structure/http/models/Severity.dart';
 
 abstract class ProblemaState {
@@ -8,12 +9,14 @@ abstract class ProblemaState {
   final List<Objective> objectives;
   final List<Heuristic> heuristics;
   final List<Severity> severities;
+  final List<Problem> initialProblems;
 
   const ProblemaState({
     this.evaluation,
     this.objectives = const [],
     this.heuristics = const [],
     this.severities = const [],
+    this.initialProblems = const [],
   });
 }
 
@@ -27,11 +30,13 @@ class ProblemaLoaded extends ProblemaState {
     required List<Objective> objectives,
     required List<Heuristic> heuristics,
     required List<Severity> severities,
+    required List<Problem> initialProblems,
   }) : super(
     evaluation: evaluation,
     objectives: objectives,
     heuristics: heuristics,
     severities: severities,
+    initialProblems: initialProblems,
   );
 }
 

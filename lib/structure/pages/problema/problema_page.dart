@@ -40,10 +40,19 @@ class ProblemForm {
   }
 }
 
+enum ProblemaPageMode { edit, view }
+
 class ProblemaPage extends StatefulWidget {
   final int evaluationId;
+  final int evaluatorId;
+  final ProblemaPageMode mode;
 
-  const ProblemaPage({super.key, required this.evaluationId});
+  const ProblemaPage({
+    super.key,
+    required this.evaluationId,
+    required this.evaluatorId,
+    this.mode = ProblemaPageMode.edit, // Modo de edição é o padrão
+  });
 
   @override
   State<ProblemaPage> createState() => _ProblemaPageState();
@@ -55,13 +64,14 @@ class _ProblemaPageState extends State<ProblemaPage> {
   List<Heuristic> _heuristics = [];
   List<Severity> _severities = [];
 
+  bool get _isReadOnly => widget.mode == ProblemaPageMode.view;
   final Map<int, PageController> _pageControllers = {};
 
   @override
   void initState() {
     super.initState();
     _bloc = ProblemaBloc();
-    _bloc.add(LoadProblemaPageData(widget.evaluationId));
+    _bloc.add(LoadProblemaPageData(evaluationId: widget.evaluationId, evaluatorId: widget.evaluatorId));
   }
 
   void _onChangeState(BuildContext context, ProblemaState state) {
@@ -69,6 +79,14 @@ class _ProblemaPageState extends State<ProblemaPage> {
       setState(() {
         _heuristics = state.heuristics;
         _severities = state.severities;
+
+        // Popula os formulários com os problemas já existentes
+        for (var problem in state.initialProblems) {
+          final objectiveId = problem.objective?.id;
+          if (objectiveId != null) {
+            _reportedProblemForms.putIfAbsent(objectiveId, () => []).add(ProblemForm(problem));
+          }
+        }
       });
     }
     if (state is ProblemaSaveSuccess) {
@@ -168,13 +186,15 @@ class _ProblemaPageState extends State<ProblemaPage> {
         children: [
           AppTextButton(
               onPressed: _handleCancel,
-              text: "Cancelar",
+              text: _isReadOnly ? "Voltar" : "Cancelar",
               backgroundColor: AppColors.white,
               textColor: AppColors.black,
               border: true,
               borderColor: AppColors.black),
           const SizedBox(width: AppSpacing.normal),
-          AppTextButton(onPressed: _handleSave, text: "Salvar"),
+          // Esconde o botão de salvar se for somente leitura
+          if (!_isReadOnly)
+            AppTextButton(onPressed: _handleSave, text: "Salvar"),
         ],
       ),
     );
@@ -189,6 +209,7 @@ class _ProblemaPageState extends State<ProblemaPage> {
         side: BorderSide(color: AppColors.grey300),
       ),
       child: SingleChildScrollView(
+        physics: const NeverScrollableScrollPhysics(),
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.medium),
           child: Column(
@@ -197,13 +218,15 @@ class _ProblemaPageState extends State<ProblemaPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text("Reportar Problema $problemNumber",
+                  Text("Problema Reportado $problemNumber",
                       style: const TextStyle(
                           fontSize: AppFontSize.fs18,
                           fontWeight: FontWeight.bold)),
-                  IconButton(
-                      icon: const Icon(Icons.delete_outline, color: AppColors.red),
-                      onPressed: () => _removeProblem(objectiveId, form)),
+                  // Esconde o botão de deletar se for somente leitura
+                  if (!_isReadOnly)
+                    IconButton(
+                        icon: const Icon(Icons.delete_outline, color: AppColors.red),
+                        onPressed: () => _removeProblem(objectiveId, form)),
                 ],
               ),
               const Divider(),
@@ -213,17 +236,19 @@ class _ProblemaPageState extends State<ProblemaPage> {
                 value: form.problem.heuristic,
                 items: _heuristics,
                 itemLabelBuilder: (h) => h.description ?? 'Sem descrição',
-                onChanged: (h) => setState(() => form.problem.heuristic = h),
+                onChanged: _isReadOnly ? null : (h) => setState(() => form.problem.heuristic = h),
               ),
               const SizedBox(height: AppSpacing.medium),
               AppTextField(
                 label: 'Descrição do Problema',
                 controller: form.descriptionController,
+                enabled: !_isReadOnly,
               ),
               const SizedBox(height: AppSpacing.medium),
               AppTextField(
                 label: 'Recomendação de Melhoria',
                 controller: form.recommendationController,
+                enabled: !_isReadOnly,
               ),
               const SizedBox(height: AppSpacing.medium),
               AppDropdown<Severity>(
@@ -231,7 +256,7 @@ class _ProblemaPageState extends State<ProblemaPage> {
                 value: form.problem.severity,
                 items: _severities,
                 itemLabelBuilder: (s) => s.description ?? 'Sem descrição',
-                onChanged: (s) => setState(() => form.problem.severity = s),
+                onChanged: _isReadOnly ? null : (s) => setState(() => form.problem.severity = s),
               ),
               const SizedBox(height: AppSpacing.medium),
               const Divider(),
@@ -240,29 +265,26 @@ class _ProblemaPageState extends State<ProblemaPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Evidência (Opcional)',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: AppFontSize.fs15)),
+                    const Text('Evidência', style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppFontSize.fs15)),
                     const SizedBox(height: AppSpacing.small),
                     Row(
                       children: [
-                        OutlinedButton.icon(
-                          icon: const Icon(Icons.attach_file, size: 18),
-                          label: const Text('Anexar Imagem'),
-                          onPressed: () => _pickImage(form),
-                        ),
+                        // Esconde o botão de anexar se for somente leitura
+                        if (!_isReadOnly)
+                          OutlinedButton.icon(
+                            icon: const Icon(Icons.attach_file, size: 18),
+                            label: const Text('Anexar Imagem'),
+                            onPressed: () => _pickImage(form),
+                          ),
                         const SizedBox(width: AppSpacing.normal),
                         Expanded(
                           child: Text(
                             form.pickedFile?.name ?? 'Nenhum arquivo.',
-                            style: TextStyle(
-                                color: AppColors.grey700,
-                                fontStyle: FontStyle.italic),
+                            style: TextStyle(color: AppColors.grey700, fontStyle: FontStyle.italic),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        if (form.pickedFile != null)
+                        if (form.pickedFile != null && !_isReadOnly)
                           IconButton(
                             tooltip: "Remover imagem",
                             icon: const Icon(Icons.clear, size: 18),
@@ -278,22 +300,10 @@ class _ProblemaPageState extends State<ProblemaPage> {
                           child: FutureBuilder<Uint8List>(
                             future: form.pickedFile!.readAsBytes(),
                             builder: (context, snapshot) {
-                              if (snapshot.connectionState ==
-                                  ConnectionState.done &&
-                                  snapshot.data != null) {
-                                return Image.memory(
-                                  snapshot.data!,
-                                  height: 100,
-                                  width: 100,
-                                  fit: BoxFit.cover,
-                                );
+                              if (snapshot.connectionState == ConnectionState.done && snapshot.data != null) {
+                                return Image.memory(snapshot.data!, height: 100, width: 100, fit: BoxFit.cover);
                               }
-                              return const SizedBox(
-                                height: 100,
-                                width: 100,
-                                child:
-                                Center(child: CircularProgressIndicator()),
-                              );
+                              return const SizedBox(height: 100, width: 100, child: Center(child: CircularProgressIndicator()));
                             },
                           ),
                         ),
@@ -310,9 +320,7 @@ class _ProblemaPageState extends State<ProblemaPage> {
 
   Widget _buildObjectiveTabBody(Objective objective) {
     final objectiveId = objective.id;
-    if (objectiveId == null) {
-      return const Center(child: Text("Erro: Objetivo sem ID."));
-    }
+    if (objectiveId == null) return const Center(child: Text("Erro: Objetivo sem ID."));
     final pageController = _pageControllers.putIfAbsent(objectiveId, () => PageController());
     final problemsForThisObjective = _reportedProblemForms.putIfAbsent(objectiveId, () => []);
 
@@ -323,19 +331,17 @@ class _ProblemaPageState extends State<ProblemaPage> {
           children: [
             Icon(Icons.check_circle_outline, size: 60, color: AppColors.green300),
             const SizedBox(height: AppSpacing.medium),
-            Text(
-              "Nenhum problema identificado para este objetivo",
-              style: TextStyle(fontSize: AppFontSize.fs18, color: AppColors.grey700),
-            ),
+            Text("Nenhum problema identificado para este objetivo", style: TextStyle(fontSize: AppFontSize.fs18, color: AppColors.grey700)),
             const SizedBox(height: AppSpacing.big),
-            AppTextButton(
-              onPressed: () => _addProblem(objectiveId),
-              text: 'Reportar Primeiro Problema',
-              icon: Icons.add,
-              backgroundColor: AppColors.grey200,
-              textColor: AppColors.black,
-              width: 250,
-            ),
+            if (!_isReadOnly)
+              AppTextButton(
+                onPressed: () => _addProblem(objectiveId),
+                text: 'Reportar Primeiro Problema',
+                icon: Icons.add,
+                backgroundColor: AppColors.grey200,
+                textColor: AppColors.black,
+                width: 250,
+              ),
           ],
         ),
       );
@@ -350,50 +356,31 @@ class _ProblemaPageState extends State<ProblemaPage> {
             itemBuilder: (context, index) {
               return _buildProblemCard(objectiveId, problemsForThisObjective[index], index + 1);
             },
-            onPageChanged: (index) {
-              setState(() {});
-            },
+            onPageChanged: (index) => setState(() {}),
           ),
         ),
         Padding(
           padding: const EdgeInsets.all(AppSpacing.medium),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back_ios),
-                onPressed: () {
-                  pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.ease);
-                },
-              ),
+              IconButton(icon: const Icon(Icons.arrow_back_ios), onPressed: () => pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.ease)),
               Text(() {
-                // Verifica se o controller já foi anexado a uma PageView
                 if (pageController.hasClients) {
                   return "Problema ${(pageController.page?.round() ?? 0) + 1} de ${problemsForThisObjective.length}";
                 }
-                // Se não, exibe a última página (que é a que será exibida)
                 return "Problema ${problemsForThisObjective.length} de ${problemsForThisObjective.length}";
-              }(),
-                style: const TextStyle(fontSize: AppFontSize.fs14),
-              ),
-
-              IconButton(
-                icon: const Icon(Icons.arrow_forward_ios),
-                onPressed: () {
-                  pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.ease);
-                },
-              ),
-
+              }(), style: const TextStyle(fontSize: AppFontSize.fs14)),
+              IconButton(icon: const Icon(Icons.arrow_forward_ios), onPressed: () => pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.ease)),
               const Spacer(),
-
-              AppTextButton(
-                onPressed: () => _addProblem(objectiveId),
-                text: 'Adicionar Problema',
-                icon: Icons.add,
-                backgroundColor: AppColors.grey200,
-                textColor: AppColors.black,
-                width: 200,
-              ),
+              if (!_isReadOnly)
+                AppTextButton(
+                  onPressed: () => _addProblem(objectiveId),
+                  text: 'Adicionar Problema',
+                  icon: Icons.add,
+                  backgroundColor: AppColors.grey200,
+                  textColor: AppColors.black,
+                  width: 200,
+                ),
             ],
           ),
         ),

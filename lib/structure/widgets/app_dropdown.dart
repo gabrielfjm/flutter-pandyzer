@@ -11,7 +11,7 @@ class AppDropdown<T> extends StatelessWidget {
   final String label;
   final T? value;
   final List<T> items;
-  final ValueChanged<T?> onChanged;
+  final ValueChanged<T?>? onChanged;
   final double? height;
   final double? width;
   final String Function(T)? itemLabelBuilder;
@@ -22,7 +22,7 @@ class AppDropdown<T> extends StatelessWidget {
     required this.label,
     required this.value,
     required this.items,
-    required this.onChanged,
+    this.onChanged, // 2. Remove o 'required'
     this.height,
     this.width,
     this.itemLabelBuilder,
@@ -31,6 +31,8 @@ class AppDropdown<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool isEnabled = onChanged != null;
+
     return SizedBox(
       height: height ?? 75,
       width: width ?? 820,
@@ -47,10 +49,12 @@ class AppDropdown<T> extends StatelessWidget {
           DropdownButtonFormField<T>(
             value: value,
             style: TextStyle(
-              color: AppColors.black,
+              color: isEnabled ? AppColors.black : AppColors.grey700,
               fontSize: AppFontSize.fs15,
             ),
             decoration: InputDecoration(
+              filled: !isEnabled, // 3. Adiciona um fundo cinza quando desabilitado
+              fillColor: AppColors.grey200,
               border: OutlineInputBorder(
                 borderSide: BorderSide(color: AppColors.black, width: 1),
                 borderRadius: BorderRadius.circular(AppSizes.s10),
@@ -59,9 +63,12 @@ class AppDropdown<T> extends StatelessWidget {
                 borderSide: BorderSide(color: AppColors.black, width: 1),
                 borderRadius: BorderRadius.circular(AppSizes.s10),
               ),
+              disabledBorder: OutlineInputBorder( // 4. Estilo da borda quando desabilitado
+                borderSide: BorderSide(color: AppColors.grey300, width: 1),
+                borderRadius: BorderRadius.circular(AppSizes.s10),
+              ),
               hintText: defaultLabel ?? AppStrings.selecioneUmaOpcao,
               hintStyle: TextStyle(color: AppColors.grey800),
-              focusColor: AppColors.black,
             ),
             hint: appText(
               text: defaultLabel ?? AppStrings.selecioneUmaOpcao,
@@ -78,7 +85,7 @@ class AppDropdown<T> extends StatelessWidget {
                 ),
               ),
             ).toList(),
-            onChanged: onChanged,
+            onChanged: onChanged, // 5. Passa o onChanged (que pode ser nulo)
           ),
         ],
       ),
