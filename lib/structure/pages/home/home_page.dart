@@ -49,7 +49,7 @@ class HomePage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 appText(
-                  text: 'Por que usar o Pandyzer?',
+                  text: 'Por que usar o Panda?',
                   fontSize: AppFontSize.fs24,
                   fontWeight: FontWeight.bold,
                   color: AppColors.black,
