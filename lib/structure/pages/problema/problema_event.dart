@@ -9,9 +9,18 @@ class LoadProblemaPageData extends ProblemaEvent {
   LoadProblemaPageData({required this.evaluationId, required this.evaluatorId});
 }
 
-class SaveProblemas extends ProblemaEvent {
-  final Map<int, List<Problem>> problemsToSave;
-  SaveProblemas(this.problemsToSave);
+class UpdateProblems extends ProblemaEvent {
+  final List<Problem> problemsToUpsert; // Upsert = Update or Insert
+  final List<int> problemIdsToDelete;
+  final int evaluationId;
+  final int evaluatorId;
+
+  UpdateProblems({
+    required this.problemsToUpsert,
+    required this.problemIdsToDelete,
+    required this.evaluationId,
+    required this.evaluatorId,
+  });
 }
 
 class FinalizeEvaluation extends ProblemaEvent {

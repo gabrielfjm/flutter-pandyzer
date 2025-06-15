@@ -1,4 +1,5 @@
 import 'package:flutter_pandyzer/structure/http/models/Evaluation.dart';
+import 'package:flutter_pandyzer/structure/http/models/Evaluator.dart';
 import 'package:flutter_pandyzer/structure/http/models/Heuristic.dart';
 import 'package:flutter_pandyzer/structure/http/models/Objective.dart';
 import 'package:flutter_pandyzer/structure/http/models/Problem.dart';
@@ -44,6 +45,18 @@ mixin ProblemaRepository {
 
   static Future<void> updateEvaluatorStatus(int usuarioId, int statusId, int evaluationId) async {
     return await AvaliadorService.updateEvaluatorStatus(usuarioId, statusId, evaluationId);
+  }
+
+  static Future<void> deleteProblem(int id) async {
+    return await ProblemaService.deleteProblema(id);
+  }
+
+  static Future<void> updateProblem(Problem problem) async {
+    return await ProblemaService.putProblema(problem);
+  }
+
+  static Future<List<Evaluator>> getEvaluatorsByIdEvaluation(int idEvaluation) async {
+    return await AvaliadorService.getEvaluatorsByIdEvaluation(idEvaluation);
   }
 
 }

@@ -20,14 +20,13 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
         final prefs = await SharedPreferences.getInstance();
         final currentUserId = prefs.getString('userId');
 
-        // 1. Busca a lista principal de avaliações
+        // 1. Busca a lista principal de avaliações (todas)
         List<Evaluation> avaliacoes = await AvaliacoesRepository.getAvaliacoes();
 
         // 2. Para cada avaliação, verifica permissões e status em paralelo
         final processingFutures = avaliacoes.map((avaliacao) async {
           if (avaliacao.id == null) return;
 
-          // Busca os avaliadores desta avaliação
           final evaluators = await AvaliacoesRepository.getEvaluatorsByIdEvaluation(avaliacao.id!);
 
           // a. Verifica se o usuário logado é um dos avaliadores
@@ -35,7 +34,7 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
             avaliacao.isCurrentUserAnEvaluator = evaluators.any((e) => e.user?.id.toString() == currentUserId);
           }
 
-          // b. Conta quantos avaliadores concluíram (status id 2)
+          // b. Conta quantos avaliadores concluíram
           avaliacao.completedEvaluationsCount = evaluators.where((e) => e.status?.id == 2).length;
 
           // c. Verifica se o avaliador logado já tem problemas reportados
@@ -53,13 +52,19 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
         // 3. Espera todas as verificações terminarem
         await Future.wait(processingFutures);
 
-        // 4. Emite o estado com a lista de avaliações enriquecida com os novos dados
-        emit(AvaliacoesLoaded(avaliacoes: avaliacoes));
+        // 4. Filtra a lista para manter apenas as avaliações relevantes
+        final filteredList = avaliacoes.where((avaliacao) {
+          final isCreator = avaliacao.user?.id.toString() == currentUserId;
+          final isEvaluator = avaliacao.isCurrentUserAnEvaluator;
+          return isCreator || isEvaluator;
+        }).toList();
+
+        // 5. Emite o estado com a lista JÁ FILTRADA
+        emit(AvaliacoesLoaded(avaliacoes: filteredList));
       } catch (e) {
         emit(AvaliacoesError(message: e.toString()));
       }
     });
-
 
     on<LoadCamposCadastroAvaliacao>((event, emit) async {
       emit(AvaliacoesLoading());
@@ -147,7 +152,6 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
           AvaliacoesRepository.getObjectivesByEvaluationId(event.evaluationId),
           AvaliacoesRepository.getDominios(),
           AvaliacoesRepository.getEvaluatorsByIdEvaluation(event.evaluationId),
-          AvaliacoesRepository.getAvaliacoes(),
           AvaliacoesRepository.getUsuariosAvaliadores(),
         ]);
 
@@ -155,11 +159,10 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
         final objectives = results[1] as List<Objective>;
         final dominios = results[2] as List<ApplicationType>;
         final selectedEvaluators = results[3] as List<Evaluator>;
-        final allEvaluations = results[4] as List<Evaluation>;
-        final availableEvaluators = results[5] as List<User>;
+        final availableEvaluators = results[4] as List<User>;
 
         emit(EvaluationDetailsLoaded(
-          avaliacoes: allEvaluations,
+          avaliacoes: currentState.avaliacoes,
           evaluation: evaluation,
           objectives: objectives,
           dominios: dominios,
@@ -250,9 +253,14 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
 
         await AvaliacoesRepository.deleteAvaliacao(event.evaluationId);
 
-        final updatedList = await AvaliacoesRepository.getAvaliacoes();
+        // --- LÓGICA CORRIGIDA ---
+        // 1. Emite um estado de sucesso para o listener da tela mostrar o Toast.
+        //    Passamos a lista atual para a UI não piscar ou mostrar dados errados.
+        emit(AvaliacaoDeleted(avaliacoes: currentState.avaliacoes));
 
-        emit(AvaliacaoDeleted(avaliacoes: updatedList));
+        // 2. Dispara o evento para recarregar e refiltrar a lista de avaliações.
+        add(LoadAvaliacoesEvent());
+
       } catch (e) {
         emit(AvaliacoesError(message: e.toString()));
       }
@@ -262,25 +270,18 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
       final currentState = state;
       emit(AvaliacoesLoading(oldState: currentState));
       try {
-        // Busca todos os objetivos da avaliação para saber onde procurar os problemas
         final objectives = await AvaliacoesRepository.getObjectivesByEvaluationId(event.evaluationId);
 
-        // Deleta todos os problemas feitos por este avaliador nesta avaliação
         await Future.forEach(objectives, (objective) async {
           if (objective.id != null) {
-            // Pega os problemas do avaliador para este objetivo
             final problemsToDelete = await AvaliacoesRepository.getProblemsByIdObjetivoAndIdEvaluator(objective.id!, event.evaluatorId);
-            // Deleta cada problema encontrado
             await Future.wait(problemsToDelete.map((p) => AvaliacoesRepository.deleteProblem(p.id!)));
           }
         });
 
-        // Após deletar os problemas, deleta o registro do avaliador
         await AvaliacoesRepository.deleteEvaluator(event.evaluatorId);
 
-        // Recarrega os dados da avaliação para refletir a remoção do avaliador
         add(LoadEvaluationDetailsEvent(event.evaluationId));
-
       } catch (e) {
         emit(AvaliacoesError(message: e.toString()));
       }

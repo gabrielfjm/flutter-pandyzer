@@ -87,7 +87,7 @@ class AvaliacaoCard extends StatelessWidget {
                   // 1. Botão "Realizar Avaliação"
                   if (evaluation.isCurrentUserAnEvaluator)
                     IconButton(
-                      tooltip: 'Realizar Avaliação',
+                      tooltip: 'Minha Avaliação',
                       icon: const Icon(Icons.playlist_add_check, color: AppColors.white),
                       onPressed: onPerform,
                     ),

@@ -82,7 +82,7 @@ mixin ProblemaService {
 
   static Future<void> deleteProblema(int id) async {
     try {
-      final response = await HttpClient.delete('/$rota/$id');
+      final response = await HttpClient.delete('$rota/$id');
 
       if (response.statusCode != 204) {
         throw Exception('Erro ao deletar problema: ${response.statusCode}');
