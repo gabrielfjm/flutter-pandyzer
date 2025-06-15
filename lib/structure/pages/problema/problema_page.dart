@@ -6,7 +6,6 @@ import 'package:flutter_pandyzer/core/app_colors.dart';
 import 'package:flutter_pandyzer/core/app_font_size.dart';
 import 'package:flutter_pandyzer/core/app_spacing.dart';
 import 'package:flutter_pandyzer/core/navigation_manager.dart';
-import 'package:flutter_pandyzer/structure/http/models/Evaluation.dart';
 import 'package:flutter_pandyzer/structure/http/models/Heuristic.dart';
 import 'package:flutter_pandyzer/structure/http/models/Objective.dart';
 import 'package:flutter_pandyzer/structure/http/models/Problem.dart';
@@ -20,6 +19,7 @@ import 'package:flutter_pandyzer/structure/widgets/app_loading.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_text_button.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_text_field.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_toast.dart';
+import 'package:flutter_pandyzer/structure/widgets/chatbot_widget.dart';
 import 'package:image_picker/image_picker.dart';
 import 'problema_bloc.dart';
 
@@ -71,6 +71,11 @@ class _ProblemaPageState extends State<ProblemaPage>
   List<Severity> _severities = [];
   List<Problem> _initialProblems = [];
 
+  // --- ESTADO DO CHAT AGORA É GERENCIADO AQUI ---
+  final List<ChatMessage> _chatMessages = [];
+  bool _isChatVisible = false;
+  bool _isChatLoading = false;
+
   bool get _isReadOnly => widget.mode == ProblemaPageMode.view;
 
   @override
@@ -79,6 +84,14 @@ class _ProblemaPageState extends State<ProblemaPage>
     _bloc = ProblemaBloc();
     _bloc.add(LoadProblemaPageData(
         evaluationId: widget.evaluationId, evaluatorId: widget.evaluatorId));
+
+    // Inicia a conversa do chat apenas uma vez.
+    if (_chatMessages.isEmpty) {
+      _chatMessages.add(ChatMessage(
+        text: 'Olá! Sou seu assistente de usabilidade. Como posso ajudar?',
+        isUser: false,
+      ));
+    }
   }
 
   @override
@@ -94,6 +107,21 @@ class _ProblemaPageState extends State<ProblemaPage>
     super.dispose();
   }
 
+  /// Lida com o envio de mensagens do chat, gerenciando o estado.
+  Future<void> _handleSendMessage(String text) async {
+    setState(() {
+      _chatMessages.add(ChatMessage(text: text, isUser: true));
+      _isChatLoading = true;
+    });
+
+    final response = await ChatbotService.getResponseFromBackend(text);
+
+    setState(() {
+      _chatMessages.add(ChatMessage(text: response, isUser: false));
+      _isChatLoading = false;
+    });
+  }
+
   void _onChangeState(BuildContext context, ProblemaState state) {
     if (state is ProblemaLoaded) {
       final bool shouldShowFinalizarTab = !_isReadOnly && state.currentUserStatusId == 1;
@@ -105,8 +133,6 @@ class _ProblemaPageState extends State<ProblemaPage>
         _tabController!.addListener(_handleTabSelection);
       }
 
-      // Reinicializa os formulários com os dados mais recentes do estado
-      // Isso é crucial após a recarga de dados
       _reportedProblemForms.clear();
       for (var problem in state.initialProblems) {
         final objectiveId = problem.objective?.id;
@@ -124,16 +150,14 @@ class _ProblemaPageState extends State<ProblemaPage>
       });
     }
 
-    // --- LÓGICA MODIFICADA ---
     if (state is ProblemaSaveSuccess) {
       showAppToast(
           context: context, message: 'Operação realizada com sucesso!');
-      // A navegação foi removida daqui. O BLoC agora cuida de recarregar os dados.
     }
 
     if (state is ProblemaFinalizeSuccess) {
       showAppToast(
-          context: context, message: 'Operação realizada com sucesso!');
+          context: context, message: 'Avaliação finalizada com sucesso!');
       NavigationManager().goTo(AvaliacoesPage());
     }
 
@@ -153,7 +177,7 @@ class _ProblemaPageState extends State<ProblemaPage>
   void _handleFinalize() {
     _bloc.add(FinalizeEvaluation(
         evaluatorId: widget.evaluatorId,
-        statusId: 2, // Finaliza com status 2 (Concluído)
+        statusId: 2,
         evaluationId: widget.evaluationId));
   }
 
@@ -182,7 +206,6 @@ class _ProblemaPageState extends State<ProblemaPage>
         .cast<int>()
         .toList();
 
-    // Adiciona os IDs necessários para o evento de recarga
     _bloc.add(UpdateProblems(
       problemsToUpsert: currentProblems,
       problemIdsToDelete: idsToDelete,
@@ -253,128 +276,167 @@ class _ProblemaPageState extends State<ProblemaPage>
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<ProblemaBloc, ProblemaState>(
-      bloc: _bloc,
-      listener: _onChangeState,
-      child: BlocBuilder<ProblemaBloc, ProblemaState>(
+    return Scaffold(
+      backgroundColor: AppColors.grey100,
+      body: BlocListener<ProblemaBloc, ProblemaState>(
         bloc: _bloc,
-        builder: (context, state) {
-          // Quando estiver carregando, mostra o loading, mas mantém o conteúdo antigo por baixo
-          if (state is ProblemaLoading && state.evaluation == null) {
-            return const Scaffold(body: AppLoading());
-          }
+        listener: _onChangeState,
+        child: BlocBuilder<ProblemaBloc, ProblemaState>(
+          bloc: _bloc,
+          builder: (context, state) {
+            final pageBody = _buildPageBody(state);
 
-          if (state is ProblemaError) {
-            return Scaffold(body: AppError(message: state.message));
-          }
+            return Row(
+              children: [
+                Expanded(
+                  child: pageBody,
+                ),
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                  child: _isChatVisible
+                      ? ChatbotPanel(
+                    messages: _chatMessages,
+                    onSendMessage: _handleSendMessage,
+                    isLoading: _isChatLoading,
+                    onClose: () {
+                      setState(() {
+                        _isChatVisible = false;
+                      });
+                    },
+                  )
+                      : const SizedBox.shrink(),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+      floatingActionButton: !_isChatVisible && !_isReadOnly
+          ? FloatingActionButton(
+        onPressed: () {
+          setState(() {
+            _isChatVisible = true;
+          });
+        },
+        backgroundColor: AppColors.grey900,
+        tooltip: 'Abrir Assistente',
+        child: const Icon(Icons.smart_toy_outlined, color: Colors.white),
+      )
+          : null,
+    );
+  }
 
-          if (state.evaluation == null) {
-            return const Scaffold(body: AppLoading());
-          }
+  Widget _buildPageBody(ProblemaState state) {
+    if (state is ProblemaLoading && state.evaluation == null) {
+      return const Center(child: AppLoading());
+    }
 
-          final objectives = state.objectives;
-          final evaluation = state.evaluation!;
+    if (state is ProblemaError) {
+      return Center(child: AppError(message: state.message));
+    }
 
-          if (_tabController == null) {
-            // A inicialização do TabController agora é feita de forma mais robusta no _onChangeState
-            // Este return é um fallback de segurança.
-            return const Scaffold(body: AppLoading());
-          }
+    if (state.evaluation == null) {
+      return const Center(child: AppLoading());
+    }
 
-          final bool showFinalizarTab = !_isReadOnly && state.currentUserStatusId == 1;
-          bool isFinalizarTabActive = showFinalizarTab && _currentTabIndex == objectives.length;
+    final objectives = state.objectives;
+    final evaluation = state.evaluation!;
 
-          return Center(
-            child: Container(
-              width: 1600,
-              height: MediaQuery.of(context).size.height * 0.9,
-              decoration: BoxDecoration(
-                  color: AppColors.white,
-                  border: Border.all(color: AppColors.black),
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 15,
-                        offset: const Offset(0, 4))
-                  ]),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(11),
-                child: Scaffold(
-                  appBar: AppBar(
-                    title: Text(evaluation.description ?? 'Reportar Problemas'),
-                    backgroundColor: AppColors.grey900,
-                    foregroundColor: AppColors.white,
-                    bottom: PreferredSize(
-                      preferredSize: const Size.fromHeight(kToolbarHeight),
-                      child: Container(
-                        color: AppColors.grey200,
-                        child: TabBar(
-                          controller: _tabController,
-                          isScrollable: true,
-                          tabs: [
-                            ...objectives.map((obj) =>
-                                Tab(text: obj.description ?? 'Objetivo')),
-                            if (showFinalizarTab) const Tab(text: 'Finalizar'),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  body: Stack(
-                    children: [
-                      TabBarView(
-                        controller: _tabController,
-                        children: [
-                          ...objectives.map((obj) {
-                            final objectiveId = obj.id;
-                            if (objectiveId == null) {
-                              return const Center(
-                                  child: Text("Erro: Objetivo sem ID."));
-                            }
-                            return _ObjectiveTabView(
-                              key: ValueKey(objectiveId),
-                              objectiveId: objectiveId,
-                              problemForms: _reportedProblemForms.putIfAbsent(
-                                  objectiveId, () => []),
-                              heuristics: _heuristics,
-                              severities: _severities,
-                              isReadOnly: _isReadOnly,
-                              onAddProblem: () => setState(() =>
-                                  _reportedProblemForms
-                                      .putIfAbsent(objectiveId, () => [])
-                                      .add(ProblemForm(Problem()))),
-                              onRemoveProblem: (form) => setState(() {
-                                form.dispose();
-                                _reportedProblemForms[objectiveId]?.remove(form);
-                              }),
-                            );
-                          }),
-                          if (showFinalizarTab) _buildFinalizarTab(),
-                        ],
-                      ),
-                      if (state is ProblemaLoading)
-                        Container(
-                          color: Colors.black.withOpacity(0.3),
-                          child: const Center(child: AppLoading(color: Colors.white)),
-                        )
+    if (_tabController == null) {
+      return const Center(child: AppLoading());
+    }
+
+    final bool showFinalizarTab = !_isReadOnly && state.currentUserStatusId == 1;
+    bool isFinalizarTabActive = showFinalizarTab && _currentTabIndex == objectives.length;
+
+    final pageContent = Center(
+      child: Container(
+        margin: const EdgeInsets.all(24),
+        constraints: const BoxConstraints(maxWidth: 1600),
+        decoration: BoxDecoration(
+            color: AppColors.white,
+            border: Border.all(color: AppColors.grey300),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 15,
+                  offset: const Offset(0, 4))
+            ]),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(11),
+          child: Scaffold(
+            appBar: AppBar(
+              title: Text(evaluation.description ?? 'Reportar Problemas'),
+              backgroundColor: AppColors.grey900,
+              foregroundColor: AppColors.white,
+              bottom: PreferredSize(
+                preferredSize: const Size.fromHeight(kToolbarHeight),
+                child: Container(
+                  color: AppColors.grey200,
+                  child: TabBar(
+                    controller: _tabController,
+                    isScrollable: true,
+                    tabs: [
+                      ...objectives.map((obj) =>
+                          Tab(text: obj.description ?? 'Objetivo')),
+                      if (showFinalizarTab) const Tab(text: 'Finalizar'),
                     ],
                   ),
-                  bottomNavigationBar:
-                  isFinalizarTabActive ? null : _buildFooter(),
                 ),
               ),
             ),
-          );
-        },
+            body: TabBarView(
+              controller: _tabController,
+              children: [
+                ...objectives.map((obj) {
+                  final objectiveId = obj.id;
+                  if (objectiveId == null) {
+                    return const Center(child: Text("Erro: Objetivo sem ID."));
+                  }
+                  return _ObjectiveTabView(
+                    key: ValueKey(objectiveId),
+                    objectiveId: objectiveId,
+                    problemForms: _reportedProblemForms.putIfAbsent(
+                        objectiveId, () => []),
+                    heuristics: _heuristics,
+                    severities: _severities,
+                    isReadOnly: _isReadOnly,
+                    onAddProblem: () => setState(() =>
+                        _reportedProblemForms
+                            .putIfAbsent(objectiveId, () => [])
+                            .add(ProblemForm(Problem()))),
+                    onRemoveProblem: (form) => setState(() {
+                      form.dispose();
+                      _reportedProblemForms[objectiveId]?.remove(form);
+                    }),
+                  );
+                }),
+                if (showFinalizarTab) _buildFinalizarTab(),
+              ],
+            ),
+            bottomNavigationBar: isFinalizarTabActive ? null : _buildFooter(),
+          ),
+        ),
       ),
+    );
+
+    return Stack(
+      children: [
+        pageContent,
+        if (state is ProblemaLoading)
+          Container(
+            color: Colors.black.withOpacity(0.3),
+            child: const Center(child: AppLoading(color: Colors.white)),
+          )
+      ],
     );
   }
 }
 
 // =======================================================
 // WIDGET INTERNO STATEFUL PARA CADA ABA
-// (Nenhuma alteração necessária aqui)
 // =======================================================
 class _ObjectiveTabView extends StatefulWidget {
   final int objectiveId;
@@ -485,13 +547,13 @@ class __ObjectiveTabViewState extends State<_ObjectiveTabView>
         children: [
           IconButton(
               icon: const Icon(Icons.arrow_back_ios),
-              onPressed: () => _pageController.previousPage(
+              onPressed: currentPage == 0 ? null : () => _pageController.previousPage(
                   duration: const Duration(milliseconds: 300),
                   curve: Curves.ease)),
           Text("Problema ${currentPage + 1} de ${widget.problemForms.length}"),
           IconButton(
               icon: const Icon(Icons.arrow_forward_ios),
-              onPressed: () => _pageController.nextPage(
+              onPressed: currentPage >= widget.problemForms.length - 1 ? null : () => _pageController.nextPage(
                   duration: const Duration(milliseconds: 300),
                   curve: Curves.ease)),
           const Spacer(),
