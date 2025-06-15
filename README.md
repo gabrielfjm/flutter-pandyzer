@@ -1,12 +1,12 @@
-# 🐼 Pandyzer
+# 🐼 Panda
 
-**Pandyzer** é uma plataforma inovadora que oferece suporte colaborativo para avaliações heurísticas de interfaces digitais. Ideal para especialistas, iniciantes e gestores que buscam melhorar a usabilidade de sistemas com base nas 10 Heurísticas de Nielsen.
+**Panda** é uma plataforma inovadora que oferece suporte colaborativo para avaliações heurísticas de interfaces digitais. Ideal para especialistas, iniciantes e gestores que buscam melhorar a usabilidade de sistemas com base nas 10 Heurísticas de Nielsen.
 
 ---
 
-## 🚀 O que é o Pandyzer?
+## 🚀 O que é o Panda?
 
-O **Pandyzer** é uma ferramenta desenvolvida para preencher a lacuna na condução prática e colaborativa de avaliações heurísticas. Diferente de soluções automatizadas e superficiais, o Pandyzer oferece um ambiente guiado, didático e acessível para que:
+O **Panda** é uma ferramenta desenvolvida para preencher a lacuna na condução prática e colaborativa de avaliações heurísticas. Diferente de soluções automatizadas e superficiais, o Panda oferece um ambiente guiado, didático e acessível para que:
 
 ✅ Especialistas possam realizar avaliações rápidas e rigorosas.  
 ✅ Iniciantes aprendam e pratiquem avaliações com suporte visual e interativo.  
@@ -25,7 +25,7 @@ O **Pandyzer** é uma ferramenta desenvolvida para preencher a lacuna na conduç
 
 ---
 
-## 👤 Para quem é o Pandyzer?
+## 👤 Para quem é o Panda?
 
 - **Especialistas em UX** → Otimize seu fluxo de trabalho e ofereça relatórios claros.  
 - **Iniciantes na área** → Aprenda heurísticas na prática, com apoio visual e chatbot.  
@@ -61,7 +61,7 @@ O **Pandyzer** é uma ferramenta desenvolvida para preencher a lacuna na conduç
 
 ---
 
-## 🔍 Por que usar o Pandyzer?
+## 🔍 Por que usar o Panda?
 
 ✅ Porque oferece **estrutura, clareza e apoio** para aplicar as Heurísticas de Nielsen com eficiência.  
 ✅ Porque é uma plataforma **acessível e intuitiva**, que democratiza o acesso à avaliação heurística.  
