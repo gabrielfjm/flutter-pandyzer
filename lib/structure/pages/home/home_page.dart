@@ -24,7 +24,7 @@ class HomePage extends StatelessWidget {
                 Icon(AppIcons.searchCheck, size: 64, color: Colors.white),
                 const SizedBox(height: AppSpacing.medium),
                 appText(
-                  text: 'Pandyzer: Eleve a Experiência do Usuário',
+                  text: 'Panda: Eleve a Experiência do Usuário',
                   fontSize: AppFontSize.fs32,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
