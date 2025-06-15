@@ -37,6 +37,21 @@ mixin ProblemaService {
     }
   }
 
+  static Future<List<Problem>> getProblemsByIdObjetivoAndIdEvaluator(int idObjetivo, int idEvaluator) async {
+    try {
+      final response = await HttpClient.get('$rota/objectives/$idObjetivo/users/$idEvaluator');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        return data.map((item) => Problem.fromJson(item)).toList();
+      } else {
+        throw Exception('Erro ao buscar problema por objetivo e avaliador: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Erro ao buscar problema por objetivo e avaliador');
+    }
+  }
+
   static Future<void> postProblema(Problem problema) async {
     try {
       final response = await HttpClient.post(rota, body: problema.toJson());
@@ -67,7 +82,7 @@ mixin ProblemaService {
 
   static Future<void> deleteProblema(int id) async {
     try {
-      final response = await HttpClient.delete('/$rota/$id');
+      final response = await HttpClient.delete('$rota/$id');
 
       if (response.statusCode != 204) {
         throw Exception('Erro ao deletar problema: ${response.statusCode}');

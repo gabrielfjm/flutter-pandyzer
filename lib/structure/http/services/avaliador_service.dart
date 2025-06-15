@@ -81,6 +81,22 @@ mixin AvaliadorService {
     }
   }
 
+  static Future<void> updateEvaluatorStatus(int evaluatorId, int statusId, int evaluationId) async{
+    if (evaluatorId == 0) {
+      throw Exception('ID do avaliador é obrigatório para atualização do status.');
+    }
+
+    try {
+      final response = await HttpClient.put('$rota/$evaluatorId/$evaluationId/status/$statusId');
+
+      if (response.statusCode != 200) {
+        throw Exception('Erro ao atualizar status do avaliador: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Erro ao atualizar avaliador');
+    }
+  }
+
   static Future<void> deleteAvaliador(int id) async {
     try {
       final response = await HttpClient.delete('$rota/$id');

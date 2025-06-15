@@ -64,3 +64,9 @@ class DeleteAvaliacaoEvent extends AvaliacoesEvent {
   final int evaluationId;
   DeleteAvaliacaoEvent(this.evaluationId);
 }
+
+class DeleteEvaluatorAndProblems extends AvaliacoesEvent {
+  final int evaluatorId;
+  final int evaluationId;
+  DeleteEvaluatorAndProblems({required this.evaluatorId, required this.evaluationId});
+}

@@ -29,4 +29,5 @@ class AppIcons {
   static const IconData users = Icons.supervised_user_circle_outlined;
   static const IconData searchCheck = Icons.check_circle_outline;
   static const IconData brain = Icons.computer_outlined;
+  static const IconData download = Icons.download;
 }

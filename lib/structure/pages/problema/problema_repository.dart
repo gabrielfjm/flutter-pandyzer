@@ -1,10 +1,12 @@
 import 'package:flutter_pandyzer/structure/http/models/Evaluation.dart';
+import 'package:flutter_pandyzer/structure/http/models/Evaluator.dart';
 import 'package:flutter_pandyzer/structure/http/models/Heuristic.dart';
 import 'package:flutter_pandyzer/structure/http/models/Objective.dart';
 import 'package:flutter_pandyzer/structure/http/models/Problem.dart';
 import 'package:flutter_pandyzer/structure/http/models/Severity.dart';
 import 'package:flutter_pandyzer/structure/http/models/User.dart';
 import 'package:flutter_pandyzer/structure/http/services/avaliacao_service.dart';
+import 'package:flutter_pandyzer/structure/http/services/avaliador_service.dart';
 import 'package:flutter_pandyzer/structure/http/services/heuristica_service.dart';
 import 'package:flutter_pandyzer/structure/http/services/objetivo_service.dart';
 import 'package:flutter_pandyzer/structure/http/services/problema_service.dart';
@@ -35,6 +37,26 @@ mixin ProblemaRepository {
 
   static Future<void> createProblema(Problem problema) async {
     return await ProblemaService.postProblema(problema);
+  }
+
+  static Future<List<Problem>> getProblemsByIdObjetivoAndIdEvaluator(int idObjetivo, int idEvaluator) async {
+    return await ProblemaService.getProblemsByIdObjetivoAndIdEvaluator(idObjetivo, idEvaluator);
+  }
+
+  static Future<void> updateEvaluatorStatus(int usuarioId, int statusId, int evaluationId) async {
+    return await AvaliadorService.updateEvaluatorStatus(usuarioId, statusId, evaluationId);
+  }
+
+  static Future<void> deleteProblem(int id) async {
+    return await ProblemaService.deleteProblema(id);
+  }
+
+  static Future<void> updateProblem(Problem problem) async {
+    return await ProblemaService.putProblema(problem);
+  }
+
+  static Future<List<Evaluator>> getEvaluatorsByIdEvaluation(int idEvaluation) async {
+    return await AvaliadorService.getEvaluatorsByIdEvaluation(idEvaluation);
   }
 
 }
