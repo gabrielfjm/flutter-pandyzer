@@ -4,15 +4,14 @@ import 'package:flutter_pandyzer/core/app_convert.dart';
 import 'package:flutter_pandyzer/core/app_font_size.dart';
 import 'package:flutter_pandyzer/core/app_icons.dart';
 import 'package:flutter_pandyzer/core/app_spacing.dart';
-import 'package:flutter_pandyzer/core/file_downloader_service.dart';
 import 'package:flutter_pandyzer/core/navigation_manager.dart';
+import 'package:flutter_pandyzer/core/pdf/report_generator_service.dart';
 import 'package:flutter_pandyzer/structure/http/models/Evaluation.dart';
 import 'package:flutter_pandyzer/structure/http/models/Evaluator.dart';
 import 'package:flutter_pandyzer/structure/http/models/Objective.dart';
 import 'package:flutter_pandyzer/structure/http/models/Problem.dart';
 import 'package:flutter_pandyzer/structure/pages/avaliacoes/avaliacoes_bloc.dart';
 import 'package:flutter_pandyzer/structure/pages/avaliacoes/avaliacoes_event.dart';
-import 'package:flutter_pandyzer/structure/pages/avaliacoes/avaliacoes_page.dart';
 import 'package:flutter_pandyzer/structure/pages/avaliacoes/avaliacoes_repository.dart';
 import 'package:flutter_pandyzer/structure/pages/problema/problema_page.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_text.dart';
@@ -41,6 +40,7 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
   String? _currentUserId;
   final Map<int, List<Problem>> _problemsByEvaluator = {};
   bool _isLoadingProblems = true;
+  bool _isGeneratingReport = false;
 
   @override
   void initState() {
@@ -64,26 +64,24 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
       return;
     }
     final groupedProblems = <int, List<Problem>>{};
-    final List<Future> fetchFutures = [];
     for (final evaluator in widget.evaluators) {
       final evaluatorUserId = evaluator.user?.id;
       if (evaluatorUserId != null) {
-        groupedProblems[evaluatorUserId] = [];
+        final List<Problem> problemsForThisEvaluator = [];
         for (final objective in widget.objectives) {
           final objectiveId = objective.id;
           if (objectiveId != null) {
-            final future = AvaliacoesRepository.getProblemsByIdObjetivoAndIdEvaluator(
+            final problems = await AvaliacoesRepository.getProblemsByIdObjetivoAndIdEvaluator(
               objectiveId,
               evaluatorUserId,
-            ).then((problems) {
-              groupedProblems[evaluatorUserId]?.addAll(problems);
-            });
-            fetchFutures.add(future);
+            );
+            problemsForThisEvaluator.addAll(problems);
           }
         }
+        groupedProblems[evaluatorUserId] = problemsForThisEvaluator;
       }
     }
-    await Future.wait(fetchFutures);
+
     if (mounted) {
       setState(() {
         _problemsByEvaluator.addAll(groupedProblems);
@@ -121,6 +119,24 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
     );
   }
 
+  Future<void> _handleReportGeneration(Future<void> Function() reportFunction) async {
+    if (_isGeneratingReport) return;
+    setState(() => _isGeneratingReport = true);
+    try {
+      await reportFunction();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Erro ao gerar o relatório: $e"), backgroundColor: AppColors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isGeneratingReport = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -133,18 +149,36 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
       content: SizedBox(
         width: MediaQuery.of(context).size.width * 0.6,
         height: MediaQuery.of(context).size.height * 0.7,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Stack(
           children: [
-            Expanded(
-              flex: 3,
-              child: _buildLeftColumn(),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: _buildLeftColumn(),
+                ),
+                const VerticalDivider(width: AppSpacing.big * 2),
+                Expanded(
+                  flex: 2,
+                  child: _buildRightColumn(),
+                ),
+              ],
             ),
-            const VerticalDivider(width: AppSpacing.big * 2),
-            Expanded(
-              flex: 2,
-              child: _buildRightColumn(),
-            ),
+            if (_isGeneratingReport)
+              Container(
+                color: Colors.black.withOpacity(0.5),
+                child: const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(color: Colors.white),
+                      SizedBox(height: 16),
+                      Text('Gerando relatório, por favor aguarde...', style: TextStyle(color: Colors.white)),
+                    ],
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -152,6 +186,9 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
   }
 
   Widget _buildHeader(BuildContext context) {
+    final completedCount = widget.evaluators.where((e) => e.status?.id == 2).length;
+    final canGenerateConsolidated = completedCount >= 1; // Mudei para 1 ou mais para permitir o teste
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.big),
       decoration: const BoxDecoration(
@@ -172,6 +209,32 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
               fontWeight: FontWeight.bold,
             ),
           ),
+          if (canGenerateConsolidated)
+            TextButton.icon(
+              style: TextButton.styleFrom(foregroundColor: AppColors.white),
+              onPressed: _isGeneratingReport ? null : () {
+                final completedEvaluators = widget.evaluators.where((e) => e.status?.id == 2).toList();
+                final problemsOfCompleted = Map.fromEntries(
+                    _problemsByEvaluator.entries.where((entry) => completedEvaluators.any((e) => e.user?.id == entry.key))
+                );
+
+                if (problemsOfCompleted.isNotEmpty) {
+                  _handleReportGeneration(() => ReportGeneratorService.generateConsolidatedReport(
+                    context: context,
+                    evaluation: widget.evaluation,
+                    evaluators: completedEvaluators,
+                    problemsByEvaluator: problemsOfCompleted,
+                    objectives: widget.objectives, // <-- AJUSTE AQUI
+                  ));
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text("Nenhum problema encontrado para gerar o relatório consolidado."),
+                  ));
+                }
+              },
+              icon: const Icon(Icons.picture_as_pdf, size: 18),
+              label: appText(text: 'Relatório Geral', color: AppColors.white),
+            ),
           IconButton(
             icon: const Icon(Icons.close, color: AppColors.white),
             onPressed: () => Navigator.of(context).pop(),
@@ -229,12 +292,8 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
 
   Widget _buildEvaluatorCard(Evaluator evaluator, List<Problem> problems) {
     final bool isConcluida = evaluator.status?.id == 2;
-    // O dono da avaliação principal
     final bool isOwner = _currentUserId != null && _currentUserId == widget.evaluation.user?.id.toString();
-
-    // Verifica se o usuário logado é o PRÓPRIO avaliador deste card
     final bool isThisEvaluator = _currentUserId != null && _currentUserId == evaluator.user?.id.toString();
-
     final bool canDownloadReport = isConcluida;
 
     return Card(
@@ -264,22 +323,25 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
                 if (canDownloadReport)
                   TextButton.icon(
                     style: TextButton.styleFrom(foregroundColor: AppColors.white),
-                    onPressed: () async {
-                      try {
-                        await FileDownloaderService.downloadAssetPdf(
-                          assetPath: 'pdf/relatorio.pdf',
-                          downloadFileName: 'Relatorio_${widget.evaluation.description?.replaceAll(' ', '_')}.pdf',
-                        );
-                      } catch (e) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Erro ao baixar o arquivo: $e"), backgroundColor: AppColors.red));
+                    onPressed: _isGeneratingReport ? null : () {
+                      if (problems.isNotEmpty) {
+                        _handleReportGeneration(() => ReportGeneratorService.generateEvaluatorReport(
+                          context: context,
+                          evaluator: evaluator,
+                          evaluation: widget.evaluation,
+                          problems: problems,
+                          objectives: widget.objectives, // <-- AJUSTE AQUI
+                        ));
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text("Este avaliador não encontrou problemas. Relatório não gerado."),
+                        ));
                       }
                     },
                     icon: const Icon(AppIcons.download, size: 16),
                     label: appText(text: 'Baixar Relatório', color: AppColors.white, fontSize: AppFontSize.fs12),
                   ),
                 const Spacer(),
-
-                // Botão de Visualizar (sempre visível)
                 IconButton(
                   tooltip: 'Visualizar Problemas',
                   onPressed: () {
@@ -294,8 +356,6 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
                   },
                   icon: const Icon(AppIcons.view, color: AppColors.white, size: 18),
                 ),
-
-                // Botão de Editar (apenas para o próprio avaliador)
                 if (isThisEvaluator)
                   IconButton(
                     tooltip: 'Minha Avaliação',
@@ -311,8 +371,6 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
                     },
                     icon: const Icon(Icons.playlist_add_check, color: AppColors.white, size: 18),
                   ),
-
-                // Botão de Excluir (apenas para o dono da avaliação)
                 if (isOwner)
                   IconButton(
                     tooltip: 'Remover Avaliador',

@@ -68,6 +68,7 @@ class AppTextButton extends StatelessWidget {
               text: text,
               color: textColor ?? AppColors.white,
               fontSize: fontSize,
+              overflow: TextOverflow.ellipsis,
             ),
             if (icon != null) ...[
               const SizedBox(width: 8),
