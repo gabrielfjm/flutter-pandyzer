@@ -2,6 +2,10 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_pandyzer/structure/http/models/ActivityLog.dart';
 import 'package:flutter_pandyzer/structure/http/models/DashboardIndicators.dart';
+import 'package:flutter_pandyzer/structure/http/models/User.dart';
+import 'package:flutter_pandyzer/structure/http/services/usuario_service.dart';
+import 'package:flutter_pandyzer/structure/pages/home/home_repository.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'home_event.dart';
 import 'home_state.dart';
@@ -11,13 +15,16 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     on<LoadDataHomeEvent>((event, emit) async {
       emit(HomeLoadingState());
       try {
-        await Future.delayed(const Duration(seconds: 1));
+        final prefs = await SharedPreferences.getInstance();
+        String? userId = prefs.getString('userId');
 
-        DashboardIndicators indicators = DashboardIndicators(
-          avaliacoesCriadas: 12,
-          avaliacoesFeitas: 8,
-          avaliacoesEmAndamento: 4,
-        );
+        final results = await Future.wait([
+          UsuarioService.getUsuarioById(int.parse(userId!)),
+          HomeRepository.getIndicatorsByUserId(),
+        ]);
+
+        User usuario = results[0] as User;
+        DashboardIndicators indicators = results[1] as DashboardIndicators;
 
         List<ActivityLog> logs = [
           ActivityLog(
@@ -53,9 +60,9 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
         ];
 
         emit(HomeLoadedState(
-          userName: 'Bibo', // Nome do usuário logado
+          userName: usuario.name!,
           indicators: indicators,
-          activityLogs: logs, // Passa a lista de logs para o estado
+          activityLogs: logs,
         ));
       } catch (e){
         debugPrint(e.toString());
