@@ -1,19 +1,19 @@
 class DashboardIndicators {
-  final int avaliacoesCriadas;
-  final int avaliacoesFeitas;
   final int avaliacoesEmAndamento;
+  final int avaliacoesConcluidas;
+  final int avaliacoesNaoIniciadas;
 
   DashboardIndicators({
-    required this.avaliacoesCriadas,
-    required this.avaliacoesFeitas,
     required this.avaliacoesEmAndamento,
+    required this.avaliacoesConcluidas,
+    required this.avaliacoesNaoIniciadas,
   });
 
   factory DashboardIndicators.fromJson(Map<String, dynamic> json) {
     return DashboardIndicators(
-      avaliacoesCriadas: json['avaliacoesCriadas'] ?? 0,
-      avaliacoesFeitas: json['avaliacoesFeitas'] ?? 0,
       avaliacoesEmAndamento: json['avaliacoesEmAndamento'] ?? 0,
+      avaliacoesConcluidas: json['avaliacoesConcluidas'] ?? 0,
+      avaliacoesNaoIniciadas: json['avaliacoesNaoIniciadas'] ?? 0,
     );
   }
 }

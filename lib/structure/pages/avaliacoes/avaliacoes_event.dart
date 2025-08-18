@@ -38,6 +38,13 @@ class LoadEvaluationDetailsEvent extends AvaliacoesEvent {
   LoadEvaluationDetailsEvent(this.evaluationId);
 }
 
+class StartEvaluationEvent extends AvaliacoesEvent {
+  final int evaluatorId;
+  final int evaluationId;
+
+  StartEvaluationEvent({required this.evaluatorId, required this.evaluationId});
+}
+
 class UpdateAvaliacaoEvent extends AvaliacoesEvent {
   final int id;
   final String descricao;
@@ -46,7 +53,7 @@ class UpdateAvaliacaoEvent extends AvaliacoesEvent {
   final String dataFim;
   final ApplicationType tipoAplicacao;
   final List<String> objetivos;
-  final List<User> avaliadores; // Adicionado
+  final List<User> avaliadores;
 
   UpdateAvaliacaoEvent({
     required this.id,

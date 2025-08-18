@@ -125,14 +125,14 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
           await AvaliacoesRepository.createObjetivo(obj);
         }
 
-        Status statusEmAndamento = await AvaliacoesRepository.getStatusById(1);
+        Status statusNaoIniciada = await AvaliacoesRepository.getStatusById(3);
 
         for (final userAvaliador in finalAvaliadores) {
           final novoAvaliador = Evaluator(
             user: userAvaliador,
             evaluation: avaliacaoCadastrada,
             register: now,
-            status: statusEmAndamento,
+            status: statusNaoIniciada,
           );
           await AvaliacoesRepository.createAvaliador(novoAvaliador);
         }
@@ -216,7 +216,7 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
         final avaliadoresParaDeletar = avaliadoresAntigos.where((ev) => !idsAvaliadoresNovos.contains(ev.user?.id));
         final usuariosParaAdicionar = event.avaliadores.where((user) => !idsAvaliadoresAntigos.contains(user.id));
 
-        final statusEmAndamento = await AvaliacoesRepository.getStatusById(2);
+        final statusNaoIniciada = await AvaliacoesRepository.getStatusById(3);
 
         await Future.wait([
           ...objetivosParaDeletar.map((obj) => AvaliacoesRepository.deleteObjetivo(obj.id!)),
@@ -228,7 +228,7 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
           }),
 
           ...usuariosParaAdicionar.map((user) {
-            final novoAvaliador = Evaluator(user: user, evaluation: Evaluation(id: event.id), register: now, status: statusEmAndamento);
+            final novoAvaliador = Evaluator(user: user, evaluation: Evaluation(id: event.id), register: now, status: statusNaoIniciada);
             return AvaliacoesRepository.createAvaliador(novoAvaliador);
           }),
         ]);
@@ -280,6 +280,17 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
         });
 
         await AvaliacoesRepository.deleteEvaluator(event.evaluatorId);
+
+        add(LoadEvaluationDetailsEvent(event.evaluationId));
+      } catch (e) {
+        emit(AvaliacoesError(message: e.toString()));
+      }
+    });
+
+    on<StartEvaluationEvent>((event, emit) async {
+      final currentState = state;
+      try {
+        await AvaliacoesRepository.updateEvaluatorStatus(event.evaluatorId, 1);
 
         add(LoadEvaluationDetailsEvent(event.evaluationId));
       } catch (e) {

@@ -90,6 +90,45 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
     }
   }
 
+  void _showStartEvaluationConfirmationDialog(Evaluator evaluator) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Iniciar Avaliação'),
+          content: const Text('Tem certeza que deseja começar esta avaliação? Após iniciar, o status será alterado para "Em Andamento".'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancelar'),
+              onPressed: () => Navigator.of(dialogContext).pop(),
+            ),
+            TextButton(
+              style: TextButton.styleFrom(foregroundColor: AppColors.green300),
+              child: const Text('Confirmar e Iniciar'),
+              onPressed: () {
+                widget.bloc.add(StartEvaluationEvent(
+                  evaluatorId: evaluator.id!,
+                  evaluationId: widget.evaluation.id!,
+                ));
+
+                Navigator.of(dialogContext).pop();
+                Navigator.of(context).pop();
+
+                NavigationManager().goTo(
+                  ProblemaPage(
+                    evaluationId: widget.evaluation.id!,
+                    evaluatorId: evaluator.user!.id!,
+                    mode: ProblemaPageMode.edit,
+                  ),
+                );
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _showDeleteEvaluatorConfirmationDialog(Evaluator evaluator) {
     showDialog(
       context: context,
@@ -167,7 +206,7 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
             ),
             if (_isGeneratingReport)
               Container(
-                color: Colors.black.withOpacity(0.5),
+                color: Colors.black.withValues(alpha: 0.5),
                 child: const Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -187,7 +226,7 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
 
   Widget _buildHeader(BuildContext context) {
     final completedCount = widget.evaluators.where((e) => e.status?.id == 2).length;
-    final canGenerateConsolidated = completedCount >= 1; // Mudei para 1 ou mais para permitir o teste
+    final canGenerateConsolidated = completedCount >= 1;
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.big),
@@ -224,7 +263,7 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
                     evaluation: widget.evaluation,
                     evaluators: completedEvaluators,
                     problemsByEvaluator: problemsOfCompleted,
-                    objectives: widget.objectives, // <-- AJUSTE AQUI
+                    objectives: widget.objectives,
                   ));
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -292,6 +331,7 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
 
   Widget _buildEvaluatorCard(Evaluator evaluator, List<Problem> problems) {
     final bool isConcluida = evaluator.status?.id == 2;
+    final bool isNaoIniciada = evaluator.status?.id == 3;
     final bool isOwner = _currentUserId != null && _currentUserId == widget.evaluation.user?.id.toString();
     final bool isThisEvaluator = _currentUserId != null && _currentUserId == evaluator.user?.id.toString();
     final bool canDownloadReport = isConcluida;
@@ -311,7 +351,7 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
                 appText(text: 'Avaliador: ${evaluator.user?.name ?? '-'}', color: AppColors.white, fontWeight: FontWeight.bold),
                 appText(
                   text: 'Status: ${evaluator.status?.description ?? '-'}',
-                  color: isConcluida ? AppColors.green300 : AppColors.amber300,
+                  color: isConcluida ? AppColors.green300 : (isNaoIniciada ? AppColors.grey500 : AppColors.amber300),
                   fontSize: AppFontSize.fs12,
                 ),
               ],
@@ -320,6 +360,21 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
+                if (isNaoIniciada && isThisEvaluator)
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.medium),
+                    child: Center(
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.green300,
+                          foregroundColor: AppColors.white,
+                        ),
+                        onPressed: () => _showStartEvaluationConfirmationDialog(evaluator),
+                        icon: const Icon(Icons.play_arrow, size: 18),
+                        label: const Text('Começar Avaliação'),
+                      ),
+                    ),
+                  ),
                 if (canDownloadReport)
                   TextButton.icon(
                     style: TextButton.styleFrom(foregroundColor: AppColors.white),
@@ -330,7 +385,7 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
                           evaluator: evaluator,
                           evaluation: widget.evaluation,
                           problems: problems,
-                          objectives: widget.objectives, // <-- AJUSTE AQUI
+                          objectives: widget.objectives,
                         ));
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -342,21 +397,22 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
                     label: appText(text: 'Baixar Relatório', color: AppColors.white, fontSize: AppFontSize.fs12),
                   ),
                 const Spacer(),
-                IconButton(
-                  tooltip: 'Visualizar Problemas',
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    NavigationManager().goTo(
-                      ProblemaPage(
-                        evaluationId: widget.evaluation.id!,
-                        evaluatorId: evaluator.user!.id!,
-                        mode: ProblemaPageMode.view,
-                      ),
-                    );
-                  },
-                  icon: const Icon(AppIcons.view, color: AppColors.white, size: 18),
-                ),
-                if (isThisEvaluator)
+                if (!isNaoIniciada)
+                  IconButton(
+                    tooltip: 'Visualizar Problemas',
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      NavigationManager().goTo(
+                        ProblemaPage(
+                          evaluationId: widget.evaluation.id!,
+                          evaluatorId: evaluator.user!.id!,
+                          mode: ProblemaPageMode.view,
+                        ),
+                      );
+                    },
+                    icon: const Icon(AppIcons.view, color: AppColors.white, size: 18),
+                  ),
+                if (isThisEvaluator && !isNaoIniciada)
                   IconButton(
                     tooltip: 'Minha Avaliação',
                     onPressed: () {

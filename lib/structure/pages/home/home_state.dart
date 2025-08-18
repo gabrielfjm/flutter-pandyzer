@@ -15,7 +15,7 @@ abstract class HomeState{
 
 class HomeInitialState extends HomeState{
   HomeInitialState(): super(
-    indicators: DashboardIndicators(avaliacoesCriadas: 0, avaliacoesFeitas: 0, avaliacoesEmAndamento: 0),
+    indicators: DashboardIndicators(avaliacoesNaoIniciadas: 0, avaliacoesEmAndamento: 0, avaliacoesConcluidas: 0),
     userName: '',
     activityLogs: [],
   );
@@ -23,7 +23,7 @@ class HomeInitialState extends HomeState{
 
 class HomeLoadingState extends HomeState{
   HomeLoadingState(): super(
-    indicators: DashboardIndicators(avaliacoesCriadas: 0, avaliacoesFeitas: 0, avaliacoesEmAndamento: 0),
+    indicators: DashboardIndicators(avaliacoesNaoIniciadas: 0, avaliacoesEmAndamento: 0, avaliacoesConcluidas: 0),
     userName: '',
     activityLogs: [],
   );
@@ -39,7 +39,7 @@ class HomeLoadedState extends HomeState {
 
 class HomeErrorState extends HomeState{
   HomeErrorState(): super(
-    indicators: DashboardIndicators(avaliacoesCriadas: 0, avaliacoesFeitas: 0, avaliacoesEmAndamento: 0),
+    indicators: DashboardIndicators(avaliacoesNaoIniciadas: 0, avaliacoesEmAndamento: 0, avaliacoesConcluidas: 0),
     userName: '',
     activityLogs: [],
   );

@@ -85,6 +85,22 @@ mixin AvaliacoesRepository {
     return await StatusService.getStatusById(id);
   }
 
+  static Future<void> updateEvaluatorStatus(int evaluatorId, int newStatusId) async {
+
+    // final response = await http.put(
+    //   Uri.parse('$_baseUrl/evaluators/$evaluatorId/status'),
+    //   body: jsonEncode({'statusId': newStatusId}),
+    //   headers: {'Content-Type': 'application/json'},
+    // );
+    //
+    // if (response.statusCode != 200) {
+    //   throw Exception('Falha ao atualizar o status da avaliação.');
+    // }
+    // Por enquanto, podemos simular o sucesso
+    await Future.delayed(const Duration(milliseconds: 500));
+    print('Status do avaliador $evaluatorId atualizado para $newStatusId');
+  }
+
   //PROBLEMA
   static Future<List<Problem>> getProblemsByIdObjetivoAndIdEvaluator(int idObjetivo, int idEvaluator) async {
     return await ProblemaService.getProblemsByIdObjetivoAndIdEvaluator(idObjetivo, idEvaluator);
