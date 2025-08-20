@@ -7,6 +7,7 @@ import 'package:flutter_pandyzer/core/app_spacing.dart';
 import 'package:flutter_pandyzer/structure/http/models/ActivityLog.dart';
 import 'package:flutter_pandyzer/structure/http/models/ChartData.dart';
 import 'package:flutter_pandyzer/structure/http/models/DashboardIndicators.dart';
+import 'package:flutter_pandyzer/structure/http/models/Log.dart';
 import 'package:flutter_pandyzer/structure/pages/home/home_bloc.dart';
 import 'package:flutter_pandyzer/structure/pages/home/home_event.dart';
 import 'package:flutter_pandyzer/structure/pages/home/home_state.dart';
@@ -213,7 +214,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _recentActivitySection(List<ActivityLog> activities) {
+  Widget _recentActivitySection(List<Log> activities) {
     final limitedActivities = activities.take(4).toList();
 
     return Column(

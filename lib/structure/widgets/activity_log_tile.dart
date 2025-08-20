@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_pandyzer/core/app_colors.dart';
 import 'package:flutter_pandyzer/core/app_font_size.dart';
-import 'package:flutter_pandyzer/structure/http/models/ActivityLog.dart';
+import 'package:flutter_pandyzer/structure/http/models/Log.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_text.dart';
 
 class ActivityLogTile extends StatefulWidget {
-  final ActivityLog activity;
+  final Log activity;
 
   const ActivityLogTile({super.key, required this.activity});
 
@@ -30,9 +30,9 @@ class _ActivityLogTileState extends State<ActivityLogTile> {
         color: _isHovering ? AppColors.grey200 : Colors.transparent,
         child: ListTile(
           leading: CircleAvatar(
-            backgroundColor: AppColors.primary.withOpacity(0.2),
+            backgroundColor: AppColors.primary.withValues(alpha: 0.2),
             child: appText(
-              text: widget.activity.userName.substring(0, 2).toUpperCase(),
+              text: widget.activity.user.name!.substring(0, 2).toUpperCase(),
               fontWeight: FontWeight.bold,
               color: AppColors.primary,
             ),
@@ -45,19 +45,15 @@ class _ActivityLogTileState extends State<ActivityLogTile> {
               ),
               children: [
                 TextSpan(
-                  text: widget.activity.userName,
+                  text: widget.activity.user.name,
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
-                TextSpan(text: ' ${widget.activity.action} '),
-                TextSpan(
-                  text: widget.activity.evaluationTitle,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
+                TextSpan(text: ' ${widget.activity.description} '),
               ],
             ),
           ),
           subtitle: appText(
-            text: widget.activity.timestamp,
+            text: widget.activity.logTimestamp,
             color: AppColors.grey800,
           ),
         ),

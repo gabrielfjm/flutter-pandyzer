@@ -1,10 +1,10 @@
-import 'package:flutter_pandyzer/structure/http/models/ActivityLog.dart';
 import 'package:flutter_pandyzer/structure/http/models/DashboardIndicators.dart';
+import 'package:flutter_pandyzer/structure/http/models/Log.dart';
 
 abstract class HomeState{
   final String userName;
   final DashboardIndicators indicators;
-  final List<ActivityLog> activityLogs;
+  final List<Log> activityLogs;
 
   HomeState({
     required this.indicators,
