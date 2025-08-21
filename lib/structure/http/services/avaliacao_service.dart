@@ -79,4 +79,18 @@ mixin AvaliacaoService {
       throw Exception('Erro ao deletar avaliação');
     }
   }
+
+  static Future<List<Evaluation>> getCommunityEvaluations(int userId) async {
+    try {
+      final response = await HttpClient.get('$rota/community/$userId');
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
+        return data.map((item) => Evaluation.fromJson(item)).toList();
+      } else {
+        throw Exception('Erro ao buscar avaliações da comunidade: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Erro ao buscar avaliações da comunidade: $e');
+    }
+  }
 }

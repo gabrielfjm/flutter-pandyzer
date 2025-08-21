@@ -11,6 +11,6 @@ mixin HomeRepository{
 
   //LOGS
   static Future<List<Log>> getActivityLogs(int userId) async{
-    return await LogService.getActivityLogs(userId);
+    return await LogService.getActivityLogsByCreatorId(userId);
   }
 }

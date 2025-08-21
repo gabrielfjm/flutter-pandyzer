@@ -1,21 +1,28 @@
 import 'package:flutter_pandyzer/structure/http/models/ApplicationType.dart';
 import 'package:flutter_pandyzer/structure/http/models/Evaluation.dart';
+import 'package:flutter_pandyzer/structure/http/models/EvaluationViewData.dart';
 import 'package:flutter_pandyzer/structure/http/models/Evaluator.dart';
 import 'package:flutter_pandyzer/structure/http/models/Objective.dart';
 import 'package:flutter_pandyzer/structure/http/models/User.dart';
 
+// --- CLASSE BASE ATUALIZADA ---
 abstract class AvaliacoesState {
-  final List<ApplicationType> dominios;
-  final List<Evaluation> avaliacoes;
+  // Dados que podem persistir entre os estados
+  final List<EvaluationViewData> myEvaluations;
+  final List<EvaluationViewData> communityEvaluations;
   final Evaluation? evaluation;
+
+  // Dados específicos de outras telas/modais
+  final List<ApplicationType> dominios;
   final List<Objective> objectives;
   final List<Evaluator> evaluators;
   final List<User> availableEvaluators;
 
   AvaliacoesState({
-    this.dominios = const [],
-    this.avaliacoes = const [],
+    this.myEvaluations = const [],
+    this.communityEvaluations = const [],
     this.evaluation,
+    this.dominios = const [],
     this.objectives = const [],
     this.evaluators = const [],
     this.availableEvaluators = const [],
@@ -24,18 +31,30 @@ abstract class AvaliacoesState {
 
 class AvaliacoesInitial extends AvaliacoesState {}
 
+// --- ESTADO DE LOADING ATUALIZADO ---
 class AvaliacoesLoading extends AvaliacoesState {
+  // O construtor agora copia os dados do estado anterior
   AvaliacoesLoading({AvaliacoesState? oldState})
       : super(
-    avaliacoes: oldState?.avaliacoes ?? [],
+    myEvaluations: oldState?.myEvaluations ?? [],
+    communityEvaluations: oldState?.communityEvaluations ?? [],
+    evaluation: oldState?.evaluation,
     dominios: oldState?.dominios ?? [],
+    objectives: oldState?.objectives ?? [],
+    evaluators: oldState?.evaluators ?? [],
     availableEvaluators: oldState?.availableEvaluators ?? [],
   );
 }
 
+// --- ESTADO DE CARREGADO ATUALIZADO ---
 class AvaliacoesLoaded extends AvaliacoesState {
-  AvaliacoesLoaded({required List<Evaluation> avaliacoes})
-      : super(avaliacoes: avaliacoes);
+  AvaliacoesLoaded({
+    required List<EvaluationViewData> myEvaluations,
+    required List<EvaluationViewData> communityEvaluations,
+  }) : super(
+    myEvaluations: myEvaluations,
+    communityEvaluations: communityEvaluations,
+  );
 }
 
 class AvaliacaoCamposLoaded extends AvaliacoesState {
@@ -54,22 +73,31 @@ class EvaluationDetailsLoaded extends AvaliacoesState {
     required List<Objective> objectives,
     required List<Evaluator> evaluators,
     required List<ApplicationType> dominios,
-    required List<Evaluation> avaliacoes,
+    required List<EvaluationViewData> myEvaluations, // Mantém os dados da lista principal
+    required List<EvaluationViewData> communityEvaluations,
     required List<User> availableEvaluators,
   }) : super(
     evaluation: evaluation,
     objectives: objectives,
     evaluators: evaluators,
     dominios: dominios,
-    avaliacoes: avaliacoes,
+    myEvaluations: myEvaluations,
+    communityEvaluations: communityEvaluations,
     availableEvaluators: availableEvaluators,
   );
 }
 
 class AvaliacaoCadastrada extends AvaliacoesState {}
 class AvaliacaoUpdated extends AvaliacoesState {}
+
 class AvaliacaoDeleted extends AvaliacoesState {
-  AvaliacaoDeleted({required List<Evaluation> avaliacoes}) : super(avaliacoes: avaliacoes);
+  AvaliacaoDeleted({
+    required List<EvaluationViewData> myEvaluations,
+    required List<EvaluationViewData> communityEvaluations,
+  }) : super(
+    myEvaluations: myEvaluations,
+    communityEvaluations: communityEvaluations,
+  );
 }
 
 class AvaliacoesError extends AvaliacoesState {

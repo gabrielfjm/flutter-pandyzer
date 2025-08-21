@@ -36,6 +36,10 @@ mixin AvaliacoesRepository {
     return await AvaliacaoService.deleteAvaliacao(id);
   }
 
+  static Future<List<Evaluation>> getCommunityEvaluations(int userId) async {
+    return await AvaliacaoService.getCommunityEvaluations(userId);
+  }
+
   //DOMINIO
   static Future<List<ApplicationType>> getDominios() async {
     return await DominioService.getDominios();

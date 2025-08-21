@@ -215,16 +215,47 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _recentActivitySection(List<Log> activities) {
+    // Verifica se a lista de atividades está vazia no início do método.
+    if (activities.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          appText(text: 'Atividade Recente', fontSize: AppFontSize.fs22, fontWeight: FontWeight.bold),
+          appSizedBox(height: AppSpacing.medium),
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: AppColors.grey600),
+                borderRadius: BorderRadius.circular(AppSizes.s10),
+              ),
+              // Mostra o conteúdo do estado vazio centralizado
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.history_toggle_off_outlined, size: 48, color: Colors.grey.shade400),
+                    appSizedBox(height: AppSpacing.medium),
+                    appText(
+                      text: "Nenhum log de atividade registrado.",
+                      color: AppColors.grey700,
+                      fontSize: AppFontSize.fs16,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    // O resto do código continua como estava se a lista não estiver vazia.
     final limitedActivities = activities.take(4).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        appText(
-          text: 'Atividade Recente',
-          fontSize: AppFontSize.fs22,
-          fontWeight: FontWeight.bold,
-        ),
+        appText(text: 'Atividade Recente', fontSize: AppFontSize.fs22, fontWeight: FontWeight.bold),
         appSizedBox(height: AppSpacing.medium),
         Expanded(
           child: Container(
@@ -238,14 +269,8 @@ class _HomePageState extends State<HomePage> {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: limitedActivities.length,
-                itemBuilder: (context, index) =>
-                    ActivityLogTile(activity: limitedActivities[index]),
-                separatorBuilder: (context, index) => const Divider(
-                  height: 1,
-                  thickness: 1,
-                  indent: 16,
-                  endIndent: 16,
-                ),
+                itemBuilder: (context, index) => ActivityLogTile(activity: limitedActivities[index]),
+                separatorBuilder: (context, index) => const Divider(height: 1, thickness: 1, indent: 16, endIndent: 16),
               ),
             ),
           ),

@@ -160,6 +160,8 @@ class _CadastroAvaliacoesPageState extends State<CadastroAvaliacoesPage> {
           tipoAplicacao: _selectedDominio!,
           objetivos: _objectives,
           avaliadores: _selectedAvaliadores,
+          isPublic: false,
+          limit: 5,
         ),
       );
     } else {
@@ -172,6 +174,8 @@ class _CadastroAvaliacoesPageState extends State<CadastroAvaliacoesPage> {
           tipoAplicacao: _selectedDominio!,
           objetivos: _objectives,
           avaliadores: _selectedAvaliadores,
+          isPublic: false,
+          limit: 5,
         ),
       );
     }

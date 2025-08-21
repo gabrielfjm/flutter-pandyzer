@@ -2,6 +2,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_pandyzer/core/app_convert.dart';
 import 'package:flutter_pandyzer/structure/http/models/ApplicationType.dart';
 import 'package:flutter_pandyzer/structure/http/models/Evaluation.dart';
+import 'package:flutter_pandyzer/structure/http/models/EvaluationViewData.dart';
 import 'package:flutter_pandyzer/structure/http/models/Evaluator.dart';
 import 'package:flutter_pandyzer/structure/http/models/Objective.dart';
 import 'package:flutter_pandyzer/structure/http/models/Status.dart';
@@ -12,62 +13,43 @@ import 'avaliacoes_event.dart';
 import 'avaliacoes_state.dart';
 
 class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
-
   AvaliacoesBloc() : super(AvaliacoesInitial()) {
     on<LoadAvaliacoesEvent>((event, emit) async {
       emit(AvaliacoesLoading(oldState: state));
       try {
         final prefs = await SharedPreferences.getInstance();
         final currentUserId = prefs.getString('userId');
+        if (currentUserId == null) throw Exception("Usuário não logado");
+        final parsedUserId = int.parse(currentUserId);
 
-        // 1. Busca a lista principal de avaliações (todas)
-        List<Evaluation> avaliacoes = await AvaliacoesRepository.getAvaliacoes();
+        final results = await Future.wait([
+          AvaliacoesRepository.getAvaliacoes(),
+          AvaliacoesRepository.getCommunityEvaluations(parsedUserId),
+        ]);
 
-        // 2. Para cada avaliação, verifica permissões e status em paralelo
-        final processingFutures = avaliacoes.map((avaliacao) async {
-          if (avaliacao.id == null) return;
+        final allEvaluations = results[0] as List<Evaluation>;
+        final communityEvaluations = results[1] as List<Evaluation>;
 
-          final evaluators = await AvaliacoesRepository.getEvaluatorsByIdEvaluation(avaliacao.id!);
+        final myActivitiesFutures = allEvaluations.map((e) => _processEvaluation(e, currentUserId)).toList();
+        final myActivitiesProcessed = await Future.wait(myActivitiesFutures);
+        final myActivitiesFiltered = myActivitiesProcessed
+            .where((v) => v.evaluation.isCurrentUserAnEvaluator || v.evaluation.user?.id.toString() == currentUserId)
+            .toList();
 
-          // a. Verifica se o usuário logado é um dos avaliadores
-          if (currentUserId != null) {
-            avaliacao.isCurrentUserAnEvaluator = evaluators.any((e) => e.user?.id.toString() == currentUserId);
-          }
+        final communityFutures = communityEvaluations.map((e) => _processEvaluation(e, currentUserId)).toList();
+        final communityActivitiesProcessed = await Future.wait(communityFutures);
 
-          // b. Conta quantos avaliadores concluíram
-          avaliacao.completedEvaluationsCount = evaluators.where((e) => e.status?.id == 2).length;
-
-          // c. Verifica se o avaliador logado já tem problemas reportados
-          if (avaliacao.isCurrentUserAnEvaluator) {
-            final objectives = await AvaliacoesRepository.getObjectivesByEvaluationId(avaliacao.id!);
-            int problemCount = 0;
-            for (var objective in objectives) {
-              final problems = await AvaliacoesRepository.getProblemsByIdObjetivoAndIdEvaluator(objective.id!, int.parse(currentUserId!));
-              problemCount += problems.length;
-            }
-            avaliacao.currentUserHasProblems = problemCount > 0;
-          }
-        }).toList();
-
-        // 3. Espera todas as verificações terminarem
-        await Future.wait(processingFutures);
-
-        // 4. Filtra a lista para manter apenas as avaliações relevantes
-        final filteredList = avaliacoes.where((avaliacao) {
-          final isCreator = avaliacao.user?.id.toString() == currentUserId;
-          final isEvaluator = avaliacao.isCurrentUserAnEvaluator;
-          return isCreator || isEvaluator;
-        }).toList();
-
-        // 5. Emite o estado com a lista JÁ FILTRADA
-        emit(AvaliacoesLoaded(avaliacoes: filteredList));
+        emit(AvaliacoesLoaded(
+          myEvaluations: myActivitiesFiltered,
+          communityEvaluations: communityActivitiesProcessed,
+        ));
       } catch (e) {
         emit(AvaliacoesError(message: e.toString()));
       }
     });
 
     on<LoadCamposCadastroAvaliacao>((event, emit) async {
-      emit(AvaliacoesLoading());
+      emit(AvaliacoesLoading(oldState: state));
       try {
         final results = await Future.wait([
           AvaliacoesRepository.getDominios(),
@@ -87,7 +69,7 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
     });
 
     on<CadastrarAvaliacaoEvent>((event, emit) async {
-      emit(AvaliacoesLoading());
+      emit(AvaliacoesLoading(oldState: state));
       try {
         final prefs = await SharedPreferences.getInstance();
         final userId = prefs.getString('userId');
@@ -112,32 +94,26 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
           applicationType: event.tipoAplicacao,
           user: creator,
           register: now,
+          isPublic: event.isPublic,
+          evaluatorsLimit: event.limit,
         );
 
         Evaluation avaliacaoCadastrada = await AvaliacoesRepository.createAvaliacao(avaliacao);
 
         for (final objetivo in event.objetivos) {
-          Objective obj = Objective(
-            description: objetivo,
-            evaluation: avaliacaoCadastrada,
-            register: now,
-          );
+          Objective obj = Objective(description: objetivo, evaluation: avaliacaoCadastrada, register: now);
           await AvaliacoesRepository.createObjetivo(obj);
         }
 
         Status statusNaoIniciada = await AvaliacoesRepository.getStatusById(3);
 
         for (final userAvaliador in finalAvaliadores) {
-          final novoAvaliador = Evaluator(
-            user: userAvaliador,
-            evaluation: avaliacaoCadastrada,
-            register: now,
-            status: statusNaoIniciada,
-          );
+          final novoAvaliador = Evaluator(user: userAvaliador, evaluation: avaliacaoCadastrada, register: now, status: statusNaoIniciada);
           await AvaliacoesRepository.createAvaliador(novoAvaliador);
         }
 
         emit(AvaliacaoCadastrada());
+        add(LoadAvaliacoesEvent()); // Recarrega a lista após o cadastro
       } catch (e) {
         emit(AvaliacoesError(message: e.toString()));
       }
@@ -161,8 +137,10 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
         final selectedEvaluators = results[3] as List<Evaluator>;
         final availableEvaluators = results[4] as List<User>;
 
+        // CORRIGIDO: Passa as listas do estado anterior para o novo estado
         emit(EvaluationDetailsLoaded(
-          avaliacoes: currentState.avaliacoes,
+          myEvaluations: currentState.myEvaluations,
+          communityEvaluations: currentState.communityEvaluations,
           evaluation: evaluation,
           objectives: objectives,
           dominios: dominios,
@@ -175,10 +153,8 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
     });
 
     on<UpdateAvaliacaoEvent>((event, emit) async {
-      final currentState = state;
-      emit(AvaliacoesLoading(oldState: currentState));
+      emit(AvaliacoesLoading(oldState: state));
       try {
-
         final prefs = await SharedPreferences.getInstance();
         final userId = prefs.getString('userId');
         if (userId == null) {
@@ -198,6 +174,8 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
           applicationType: event.tipoAplicacao,
           user: creator,
           register: now,
+          isPublic: event.isPublic,
+          evaluatorsLimit: event.limit,
         );
         await AvaliacoesRepository.putAvaliacao(evaluationToUpdate);
 
@@ -221,12 +199,10 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
         await Future.wait([
           ...objetivosParaDeletar.map((obj) => AvaliacoesRepository.deleteObjetivo(obj.id!)),
           ...avaliadoresParaDeletar.map((ev) => AvaliacoesRepository.deleteEvaluator(ev.id!)),
-
           ...descricoesParaAdicionar.map((desc) {
             final novoObjetivo = Objective(description: desc, evaluation: Evaluation(id: event.id), register: now);
             return AvaliacoesRepository.createObjetivo(novoObjetivo);
           }),
-
           ...usuariosParaAdicionar.map((user) {
             final novoAvaliador = Evaluator(user: user, evaluation: Evaluation(id: event.id), register: now, status: statusNaoIniciada);
             return AvaliacoesRepository.createAvaliador(novoAvaliador);
@@ -234,6 +210,7 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
         ]);
 
         emit(AvaliacaoUpdated());
+        add(LoadAvaliacoesEvent()); // Recarrega a lista após a atualização
       } catch (e) {
         emit(AvaliacoesError(message: e.toString()));
       }
@@ -253,22 +230,19 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
 
         await AvaliacoesRepository.deleteAvaliacao(event.evaluationId);
 
-        // --- LÓGICA CORRIGIDA ---
-        // 1. Emite um estado de sucesso para o listener da tela mostrar o Toast.
-        //    Passamos a lista atual para a UI não piscar ou mostrar dados errados.
-        emit(AvaliacaoDeleted(avaliacoes: currentState.avaliacoes));
+        // CORRIGIDO: Passa as listas do estado anterior para o novo estado
+        emit(AvaliacaoDeleted(
+          myEvaluations: currentState.myEvaluations,
+          communityEvaluations: currentState.communityEvaluations,
+        ));
 
-        // 2. Dispara o evento para recarregar e refiltrar a lista de avaliações.
         add(LoadAvaliacoesEvent());
-
       } catch (e) {
         emit(AvaliacoesError(message: e.toString()));
       }
     });
 
     on<DeleteEvaluatorAndProblems>((event, emit) async {
-      final currentState = state;
-      emit(AvaliacoesLoading(oldState: currentState));
       try {
         final objectives = await AvaliacoesRepository.getObjectivesByEvaluationId(event.evaluationId);
 
@@ -281,21 +255,54 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
 
         await AvaliacoesRepository.deleteEvaluator(event.evaluatorId);
 
+        // Recarrega os detalhes e a lista principal
         add(LoadEvaluationDetailsEvent(event.evaluationId));
+        add(LoadAvaliacoesEvent());
       } catch (e) {
         emit(AvaliacoesError(message: e.toString()));
       }
     });
 
     on<StartEvaluationEvent>((event, emit) async {
-      final currentState = state;
       try {
         await AvaliacoesRepository.updateEvaluatorStatus(event.evaluatorId, 1);
 
+        // Recarrega os detalhes e a lista principal
         add(LoadEvaluationDetailsEvent(event.evaluationId));
+        add(LoadAvaliacoesEvent());
       } catch (e) {
         emit(AvaliacoesError(message: e.toString()));
       }
     });
+  }
+
+  Future<EvaluationViewData> _processEvaluation(Evaluation avaliacao, String currentUserId) async {
+    if (avaliacao.id == null) {
+      return EvaluationViewData(evaluation: avaliacao);
+    }
+    final evaluators = await AvaliacoesRepository.getEvaluatorsByIdEvaluation(avaliacao.id!);
+    avaliacao.completedEvaluationsCount = evaluators.where((e) => e.status?.id == 2).length;
+    Evaluator? currentUserAsEvaluator;
+    try {
+      currentUserAsEvaluator = evaluators.firstWhere((e) => e.user?.id.toString() == currentUserId);
+      avaliacao.isCurrentUserAnEvaluator = true;
+    } catch (e) {
+      avaliacao.isCurrentUserAnEvaluator = false;
+    }
+    if (avaliacao.isCurrentUserAnEvaluator) {
+      final objectives = await AvaliacoesRepository.getObjectivesByEvaluationId(avaliacao.id!);
+      int problemCount = 0;
+      await Future.forEach(objectives, (objective) async {
+        if (objective.id != null) {
+          final problems = await AvaliacoesRepository.getProblemsByIdObjetivoAndIdEvaluator(objective.id!, int.parse(currentUserId));
+          problemCount += problems.length;
+        }
+      });
+      avaliacao.currentUserHasProblems = problemCount > 0;
+    }
+    return EvaluationViewData(
+      evaluation: avaliacao,
+      currentUserAsEvaluator: currentUserAsEvaluator,
+    );
   }
 }

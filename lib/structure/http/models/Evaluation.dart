@@ -11,10 +11,10 @@ class Evaluation {
   ApplicationType? applicationType;
   User? user;
   int? completedEvaluationsCount;
-
-  // Campos calculados no frontend para controlar a UI
   bool isCurrentUserAnEvaluator;
   bool currentUserHasProblems;
+  bool isPublic;
+  int? evaluatorsLimit;
 
   Evaluation({
     this.id,
@@ -28,6 +28,8 @@ class Evaluation {
     this.completedEvaluationsCount,
     this.isCurrentUserAnEvaluator = false,
     this.currentUserHasProblems = false,
+    this.isPublic = false,
+    this.evaluatorsLimit,
   });
 
   factory Evaluation.fromJson(Map<String, dynamic> json) {
@@ -43,9 +45,12 @@ class Evaluation {
           : null,
       user: json['user'] != null ? User.fromJson(json['user']) : null,
       completedEvaluationsCount: json['completedEvaluationsCount'],
+      isPublic: json['isPublic'] ?? false,
+      evaluatorsLimit: json['evaluatorsLimit'],
       // Estes campos não vêm do JSON, serão populados no BLoC
     );
   }
+
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = <String, dynamic>{};
@@ -61,6 +66,8 @@ class Evaluation {
     if (user != null) {
       data['user'] = user!.toJson();
     }
+    data['isPublic'] = isPublic;
+    data['evaluatorsLimit'] = evaluatorsLimit;
     return data;
   }
 }

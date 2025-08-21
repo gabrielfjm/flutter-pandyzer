@@ -21,6 +21,8 @@ class CadastrarAvaliacaoEvent extends AvaliacoesEvent {
   ApplicationType tipoAplicacao;
   List<String> objetivos;
   List<User> avaliadores;
+  bool isPublic;
+  int limit;
 
   CadastrarAvaliacaoEvent({
     required this.descricao,
@@ -30,6 +32,8 @@ class CadastrarAvaliacaoEvent extends AvaliacoesEvent {
     required this.tipoAplicacao,
     required this.objetivos,
     required this.avaliadores,
+    required this.isPublic,
+    required this.limit,
   });
 }
 
@@ -54,6 +58,8 @@ class UpdateAvaliacaoEvent extends AvaliacoesEvent {
   final ApplicationType tipoAplicacao;
   final List<String> objetivos;
   final List<User> avaliadores;
+  final bool isPublic;
+  final int limit;
 
   UpdateAvaliacaoEvent({
     required this.id,
@@ -63,7 +69,9 @@ class UpdateAvaliacaoEvent extends AvaliacoesEvent {
     required this.dataFim,
     required this.tipoAplicacao,
     required this.objetivos,
-    required this.avaliadores, // Adicionado
+    required this.avaliadores,
+    required this.isPublic,
+    required this.limit,
   });
 }
 

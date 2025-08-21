@@ -16,6 +16,10 @@ class AvaliacaoCard extends StatelessWidget {
   final VoidCallback onDelete;
   final VoidCallback onPerform;
 
+  // --- PARÂMETROS ADICIONADOS ---
+  final bool isCurrentUserAnEvaluator;
+  final bool currentUserHasStarted;
+
   const AvaliacaoCard({
     super.key,
     required this.evaluation,
@@ -24,6 +28,9 @@ class AvaliacaoCard extends StatelessWidget {
     required this.onEdit,
     required this.onDelete,
     required this.onPerform,
+    // --- PARÂMETROS ADICIONADOS NO CONSTRUTOR ---
+    required this.isCurrentUserAnEvaluator,
+    required this.currentUserHasStarted,
   });
 
   @override
@@ -84,22 +91,24 @@ class AvaliacaoCard extends StatelessWidget {
                     color: AppColors.white,
                   ),
                   const SizedBox(width: AppSpacing.normal),
-                  // 1. Botão "Realizar Avaliação"
-                  if (evaluation.isCurrentUserAnEvaluator)
+
+                  // --- LÓGICA DO BOTÃO DE AÇÃO ATUALIZADA ---
+                  if (isCurrentUserAnEvaluator)
                     IconButton(
-                      tooltip: 'Minha Avaliação',
-                      icon: const Icon(Icons.playlist_add_check, color: AppColors.white),
+                      tooltip: currentUserHasStarted ? 'Continuar Avaliação' : 'Iniciar Avaliação',
+                      icon: Icon(
+                        currentUserHasStarted ? Icons.playlist_add_check : Icons.play_circle_outline,
+                        color: AppColors.white,
+                      ),
                       onPressed: onPerform,
                     ),
 
-                  // 2. Botão "Visualizar Detalhes" (sempre visível)
                   IconButton(
                     tooltip: 'Visualizar Detalhes',
                     icon: const Icon(AppIcons.view, color: AppColors.white),
                     onPressed: onView,
                   ),
 
-                  // 3. Botões "Editar" e "Excluir" (apenas para o dono)
                   if (isOwner) ...[
                     IconButton(
                       tooltip: 'Editar Avaliação',

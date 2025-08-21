@@ -21,4 +21,13 @@ class Log {
       logTimestamp: json['logTimestamp'],
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'description': description,
+      'user': user.toJson(),
+      'logTimestamp': logTimestamp,
+    };
+  }
 }
