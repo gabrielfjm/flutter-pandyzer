@@ -16,6 +16,20 @@ import 'package:flutter_pandyzer/structure/http/services/usuario_service.dart';
 mixin AvaliacoesRepository {
 
   //AVALIAÇÃO
+  static Future<List<Evaluation>> filterEvaluations({
+    String? description,
+    String? startDate,
+    String? finalDate,
+    int? statusId,
+  }) async {
+    return await AvaliacaoService.filterEvaluations(
+      description: description,
+      startDate: startDate,
+      finalDate: finalDate,
+      statusId: statusId,
+    );
+  }
+
   static Future<Evaluation> createAvaliacao(Evaluation avaliacao) async {
     return await AvaliacaoService.postAvaliacao(avaliacao);
   }
@@ -49,7 +63,7 @@ mixin AvaliacoesRepository {
     return await DominioService.getDominioById(id);
   }
 
-  //OBEJTIVO
+  //OBJETIVO
   static Future<void> createObjetivo(Objective objetivo) async {
     return await ObjetivoService.postObjetivo(objetivo);
   }
@@ -87,6 +101,10 @@ mixin AvaliacoesRepository {
   //STATUS
   static Future<Status> getStatusById(int id) async {
     return await StatusService.getStatusById(id);
+  }
+
+  static Future<List<Status>> getStatuses() async {
+    return await StatusService.getStatuses();
   }
 
   static Future<void> updateEvaluatorStatus(int evaluatorId, int newStatusId) async {

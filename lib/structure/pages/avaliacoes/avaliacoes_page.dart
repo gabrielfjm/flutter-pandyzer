@@ -11,6 +11,7 @@ import 'package:flutter_pandyzer/structure/http/models/Evaluation.dart';
 import 'package:flutter_pandyzer/structure/http/models/EvaluationViewData.dart';
 import 'package:flutter_pandyzer/structure/http/models/Evaluator.dart';
 import 'package:flutter_pandyzer/structure/http/models/Objective.dart';
+import 'package:flutter_pandyzer/structure/http/models/Status.dart';
 import 'package:flutter_pandyzer/structure/pages/avaliacoes/avaliacoes_bloc.dart';
 import 'package:flutter_pandyzer/structure/pages/avaliacoes/avaliacoes_event.dart';
 import 'package:flutter_pandyzer/structure/pages/avaliacoes/avaliacoes_state.dart';
@@ -20,11 +21,17 @@ import 'package:flutter_pandyzer/structure/pages/avaliacoes/tabs/comunidade_aval
 import 'package:flutter_pandyzer/structure/pages/avaliacoes/tabs/minhas_avaliacoes_tab.dart';
 import 'package:flutter_pandyzer/structure/pages/problema/problema_page.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_container.dart';
+import 'package:flutter_pandyzer/structure/widgets/app_data_picker_field.dart';
+import 'package:flutter_pandyzer/structure/widgets/app_dropdown.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_sized_box.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_text.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_text_button.dart';
+import 'package:flutter_pandyzer/structure/widgets/app_text_field.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_toast.dart';
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'avaliacoes_repository.dart';
 
 class AvaliacoesPage extends StatefulWidget {
   const AvaliacoesPage({super.key});
@@ -38,11 +45,31 @@ class _AvaliacoesPageState extends State<AvaliacoesPage> with SingleTickerProvid
   late TabController _tabController;
   String? _currentUserId;
 
+  final _descriptionFilterController = TextEditingController();
+  final _startDateFilterController = TextEditingController();
+  final _endDateFilterController = TextEditingController();
+  Status? _selectedStatus;
+  List<Status> _availableStatuses = [];
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _loadCurrentUserAndData();
+    _loadFilterDependencies();
+  }
+
+  Future<void> _loadFilterDependencies() async {
+    try {
+      final statuses = await AvaliacoesRepository.getStatuses();
+      if (mounted) {
+        setState(() {
+          _availableStatuses = statuses;
+        });
+      }
+    } catch (e) {
+      if(mounted) showAppToast(context: context, message: "Erro ao carregar os status para o filtro.", isError: true);
+    }
   }
 
   Future<void> _loadCurrentUserAndData() async {
@@ -75,6 +102,41 @@ class _AvaliacoesPageState extends State<AvaliacoesPage> with SingleTickerProvid
   }
 
   // --- Funções de Ação Centralizadas ---
+
+  void _applyFilters() {
+    // Validação de data
+    if (_startDateFilterController.text.isNotEmpty && _endDateFilterController.text.isNotEmpty) {
+      try {
+        final formatter = DateFormat('dd/MM/yyyy');
+        final startDate = formatter.parse(_startDateFilterController.text);
+        final endDate = formatter.parse(_endDateFilterController.text);
+        if (endDate.isBefore(startDate)) {
+          showAppToast(context: context, message: "A data final do filtro não pode ser anterior à data inicial.", isError: true);
+          return;
+        }
+      } catch(e) {
+        showAppToast(context: context, message: "Formato de data inválido.", isError: true);
+        return;
+      }
+    }
+
+    _bloc.add(ApplyFiltersEvent(
+      description: _descriptionFilterController.text,
+      startDate: _startDateFilterController.text,
+      finalDate: _endDateFilterController.text,
+      status: _selectedStatus,
+    ));
+  }
+
+  void _clearFilters() {
+    _descriptionFilterController.clear();
+    _startDateFilterController.clear();
+    _endDateFilterController.clear();
+    setState(() {
+      _selectedStatus = null;
+    });
+    _bloc.add(LoadAvaliacoesEvent()); // Recarrega a lista original
+  }
 
   void _performAction(EvaluationViewData viewData) {
     final evaluation = viewData.evaluation;
@@ -274,23 +336,42 @@ class _AvaliacoesPageState extends State<AvaliacoesPage> with SingleTickerProvid
   }
 
   Widget _filters() {
-    return Row(
+    return ExpansionTile(
+      title: appText(text: "Filtros", fontWeight: FontWeight.bold),
+      leading: const Icon(AppIcons.filter),
+      childrenPadding: const EdgeInsets.all(AppSpacing.medium),
       children: [
-        Expanded(
-          child: TextField(
-            decoration: InputDecoration(
-              hintText: 'Filtrar avaliações...',
-              prefixIcon: const Icon(Icons.search),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.s10)),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(flex: 2, child: AppTextField(label: 'Título da Avaliação', controller: _descriptionFilterController, height: 75)),
+            appSizedBox(width: AppSpacing.normal),
+            Expanded(flex: 1, child: AppDatePickerField(label: 'Data de Início', controller: _startDateFilterController, height: 75)),
+            appSizedBox(width: AppSpacing.normal),
+            Expanded(flex: 1, child: AppDatePickerField(label: 'Data de Fim', controller: _endDateFilterController, height: 75)),
+            appSizedBox(width: AppSpacing.normal),
+            Expanded(
+              flex: 1,
+              child: AppDropdown<Status>(
+                label: 'Status',
+                value: _selectedStatus,
+                items: _availableStatuses,
+                hintText: 'Selecione um status',
+                height: 30,
+                onChanged: (status) => setState(() => _selectedStatus = status),
+                itemLabelBuilder: (status) => status.description ?? '',
+              ),
             ),
-          ),
+          ],
         ),
-        appSizedBox(width: AppSpacing.big),
-        AppTextButton(
-          text: "Nova Avaliação",
-          icon: AppIcons.add,
-          width: AppSizes.s200,
-          onPressed: () => NavigationManager().goTo(CadastroAvaliacoesPage(bloc: _bloc)),
+        appSizedBox(height: AppSpacing.medium),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            AppTextButton(text: "Limpar Filtros", backgroundColor: AppColors.grey600, onPressed: _clearFilters, width: 150),
+            appSizedBox(width: AppSpacing.normal),
+            AppTextButton(text: "Aplicar Filtros", icon: AppIcons.search, onPressed: _applyFilters, width: 150),
+          ],
         ),
       ],
     );

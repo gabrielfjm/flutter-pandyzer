@@ -12,7 +12,9 @@ class AppColors {
   static const Color white = Colors.white;
   static const Color grey = Colors.grey;
   static const Color red = Colors.red;
+  static Color red100 = Colors.red[100]!;
   static const Color green = Colors.green;
+  static Color green100 = Colors.green[100]!;
 
   // Tons de cinza
   static Color grey900 = Colors.grey[900]!;

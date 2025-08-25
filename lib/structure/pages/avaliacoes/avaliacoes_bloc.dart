@@ -119,6 +119,43 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
       }
     });
 
+    on<ApplyFiltersEvent>((event, emit) async {
+      emit(AvaliacoesLoading(oldState: state));
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final currentUserId = prefs.getString('userId');
+        if (currentUserId == null) throw Exception("Usuário não logado");
+
+        // Chama o novo método do repositório com os filtros
+        final filteredEvaluations = await AvaliacoesRepository.filterEvaluations(
+          description: event.description,
+          startDate: event.startDate,
+          finalDate: event.finalDate,
+          statusId: event.status?.id,
+        );
+
+        // Processa os resultados filtrados
+        final processedFutures = filteredEvaluations.map((e) => _processEvaluation(e, currentUserId)).toList();
+        final processedEvaluations = await Future.wait(processedFutures);
+
+        // Filtra novamente no front-end para separar "Minhas" de "Comunidade"
+        final myEvaluations = processedEvaluations
+            .where((v) => v.evaluation.isCurrentUserAnEvaluator || v.evaluation.user?.id.toString() == currentUserId)
+            .toList();
+
+        final communityEvaluations = processedEvaluations
+            .where((v) => !myEvaluations.contains(v) && v.evaluation.isPublic)
+            .toList();
+
+        emit(AvaliacoesLoaded(
+          myEvaluations: myEvaluations,
+          communityEvaluations: communityEvaluations,
+        ));
+      } catch (e) {
+        emit(AvaliacoesError(message: e.toString()));
+      }
+    });
+
     on<LoadEvaluationDetailsEvent>((event, emit) async {
       final currentState = state;
       emit(AvaliacoesLoading(oldState: currentState));

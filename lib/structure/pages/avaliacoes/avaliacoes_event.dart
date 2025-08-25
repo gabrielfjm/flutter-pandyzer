@@ -1,4 +1,5 @@
 import 'package:flutter_pandyzer/structure/http/models/ApplicationType.dart';
+import 'package:flutter_pandyzer/structure/http/models/Status.dart';
 import 'package:flutter_pandyzer/structure/http/models/User.dart';
 
 abstract class AvaliacoesEvent {}
@@ -12,6 +13,20 @@ class AddAvaliacaoEvent extends AvaliacoesEvent {
 }
 
 class LoadCamposCadastroAvaliacao extends AvaliacoesEvent {}
+
+class ApplyFiltersEvent extends AvaliacoesEvent {
+  final String? description;
+  final String? startDate;
+  final String? finalDate;
+  final Status? status;
+
+  ApplyFiltersEvent({
+    this.description,
+    this.startDate,
+    this.finalDate,
+    this.status,
+  });
+}
 
 class CadastrarAvaliacaoEvent extends AvaliacoesEvent {
   String descricao;

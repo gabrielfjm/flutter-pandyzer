@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter_pandyzer/core/app_convert.dart';
 import 'package:flutter_pandyzer/core/http_client.dart';
 import 'package:flutter_pandyzer/structure/http/models/Evaluation.dart';
 
@@ -91,6 +92,51 @@ mixin AvaliacaoService {
       }
     } catch (e) {
       throw Exception('Erro ao buscar avaliações da comunidade: $e');
+    }
+  }
+
+  static Future<List<Evaluation>> filterEvaluations({
+    String? description,
+    String? startDate,
+    String? finalDate,
+    int? statusId,
+  }) async {
+    // 1. Cria um mapa vazio
+    final Map<String, String> queryParams = {};
+
+    // 2. Adiciona os parâmetros condicionalmente
+    if (description != null && description.isNotEmpty) {
+      queryParams['description'] = description;
+    }
+    if (startDate != null && startDate.isNotEmpty) {
+      final isoDate = AppConvert.convertDateToIso(startDate);
+      // Só adiciona ao mapa se a conversão for bem-sucedida (não nula)
+      if (isoDate != null) {
+        queryParams['startDate'] = isoDate;
+      }
+    }
+    if (finalDate != null && finalDate.isNotEmpty) {
+      final isoDate = AppConvert.convertDateToIso(finalDate);
+      if (isoDate != null) {
+        queryParams['finalDate'] = isoDate;
+      }
+    }
+    if (statusId != null) {
+      queryParams['statusId'] = statusId.toString();
+    }
+
+    final uri = Uri.parse('$rota/filter').replace(queryParameters: queryParams);
+
+    try {
+      final response = await HttpClient.get(uri.toString());
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
+        return data.map((item) => Evaluation.fromJson(item)).toList();
+      } else {
+        throw Exception('Erro ao filtrar avaliações: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Erro ao filtrar avaliações: $e');
     }
   }
 }

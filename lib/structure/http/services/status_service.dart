@@ -22,6 +22,20 @@ mixin StatusService {
     }
   }
 
+  static Future<List<Status>> getStatuses() async {
+    try {
+      final response = await HttpClient.get(rota);
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
+        return data.map((item) => Status.fromJson(item)).toList();
+      } else {
+        throw Exception('Erro ao buscar status: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Erro ao buscar status: $e');
+    }
+  }
+
   static Future<Status> getStatusById(int id) async {
     try {
       final response = await HttpClient.get('$rota/$id');

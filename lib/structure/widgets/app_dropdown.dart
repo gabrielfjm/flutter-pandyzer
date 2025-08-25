@@ -16,6 +16,7 @@ class AppDropdown<T> extends StatelessWidget {
   final double? width;
   final String Function(T)? itemLabelBuilder;
   final bool enabled;
+  final String? hintText;
 
   const AppDropdown({
     super.key,
@@ -27,6 +28,7 @@ class AppDropdown<T> extends StatelessWidget {
     this.width,
     this.itemLabelBuilder,
     this.enabled = true,
+    this.hintText,
   });
 
   @override
@@ -46,6 +48,9 @@ class AppDropdown<T> extends StatelessWidget {
           DropdownButtonFormField2<T>(
             isExpanded: true,
             value: value,
+            hint: hintText != null
+                ? Text(hintText!, style: TextStyle(fontSize: AppFontSize.fs15, color: AppColors.grey700))
+                : null,
             items: items
                 .map((e) => DropdownMenuItem<T>(
               value: e,
@@ -55,12 +60,11 @@ class AppDropdown<T> extends StatelessWidget {
               ),
             ))
                 .toList(),
-            onChanged: enabled ? onChanged : null, // 5. Desabilita a ação se 'enabled' for false
+            onChanged: enabled ? onChanged : null,
             decoration: InputDecoration(
-              filled: !enabled, // 6. Preenche com cor de fundo quando desabilitado
+              filled: !enabled,
               fillColor: AppColors.grey200,
-              contentPadding:
-              const EdgeInsets.symmetric(vertical: 12, horizontal: 0),
+              contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 0),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(AppSizes.s10),
                 borderSide: const BorderSide(color: AppColors.black),
