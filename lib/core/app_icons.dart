@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 
 class AppIcons {
   static const IconData add = Icons.add;
@@ -30,4 +29,9 @@ class AppIcons {
   static const IconData searchCheck = Icons.check_circle_outline;
   static const IconData brain = Icons.computer_outlined;
   static const IconData download = Icons.download;
+  static const IconData filter = Icons.filter_list;
+  static const IconData clipboardList = Icons.assignment;
+  static const IconData info = Icons.info;
+  static const IconData checklist = Icons.checklist;
+  static const IconData public = Icons.public;
 }

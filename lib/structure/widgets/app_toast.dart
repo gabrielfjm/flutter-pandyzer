@@ -1,49 +1,87 @@
+// lib/structure/widgets/app_toast.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_pandyzer/core/app_colors.dart';
 import 'package:flutter_pandyzer/core/app_font_size.dart';
-import 'package:flutter_pandyzer/core/app_sizes.dart';
-/// Exibe um SnackBar (toast) com uma mensagem e cor de fundo baseada no tipo (erro ou sucesso).
-///
-/// Parâmetros:
-///   - `context`: O BuildContext atual, necessário para encontrar o ScaffoldMessenger.
-///   - `message`: A mensagem a ser exibida no toast.
-///   - `isError`: Booleano que indica se a mensagem é um erro (`true`) ou não (`false`).
-///                Determina a cor de fundo do toast (vermelho para erro, verde para sucesso/info).
-///   - `duration`: Duração opcional pela qual o SnackBar é exibido. Padrão é 4 segundos.
-///   - `textColor`: Cor opcional para o texto da mensagem. Padrão é branco.
+
+/// Exibe um toast seguro usando ScaffoldMessenger (sem OverlayEntry).
+/// - `isError` muda cor/ícone
+/// - `duration` controla por quanto tempo fica visível
+/// - Estilo flutuante com margem para parecer um "card" no canto inferior-direito.
 void showAppToast({
   required BuildContext context,
   required String message,
   bool isError = false,
-  Duration duration = const Duration(seconds: 4),
-  Color? textColor, // Adicionado para consistência com appText
+  Duration duration = const Duration(seconds: 5),
 }) {
-  // Remove qualquer SnackBar que esteja sendo exibido atualmente
-  // para evitar o empilhamento de vários toasts.
-  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+  final messenger = ScaffoldMessenger.maybeOf(context);
+  if (messenger == null) return;
 
-  // Determina a cor de fundo com base no parâmetro isError
-  final Color backgroundColor = isError
-      ? AppColors.red300
-      : AppColors.green300;
+  // Fecha um snackbar anterior (se houver), para não empilhar
+  messenger.clearSnackBars();
 
-  final SnackBar snackBar = SnackBar(
-    content: Text(
-      message,
-      style: TextStyle(
-        color: textColor ?? AppColors.white,
-        fontSize: AppFontSize.fs15,
-      ),
-      textAlign: TextAlign.center,
-    ),
-    backgroundColor: backgroundColor,
-    duration: duration,
+  final Color bg = isError ? AppColors.red100 : AppColors.green100;
+  final Color iconColor = isError ? AppColors.red : AppColors.green;
+  final IconData icon = isError ? Icons.error_outline : Icons.check_circle_outline;
+
+  // Para posicionar mais “à direita”, usamos behavior: floating + margin.
+  // A largura será limitada pelo próprio conteúdo; se quiser fixar 350px,
+  // envolvemos em um SizedBox.
+  final snack = SnackBar(
     behavior: SnackBarBehavior.floating,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(AppSizes.s10),
+    backgroundColor: Colors.transparent, // Deixa transparente p/ mostrarmos nosso card
+    elevation: 0,
+    duration: duration,
+    margin: const EdgeInsets.only(bottom: 20, right: 20, left: 20),
+    content: Align(
+      alignment: Alignment.bottomRight,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 360),
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: iconColor.withOpacity(0.5)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.10),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, color: iconColor, size: 22),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    message,
+                    style: const TextStyle(
+                      fontSize: AppFontSize.fs15,
+                      color: AppColors.black,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                InkWell(
+                  onTap: () => messenger.hideCurrentSnackBar(),
+                  child: Padding(
+                    padding: EdgeInsets.all(4.0),
+                    child: Icon(Icons.close, size: 18, color: AppColors.grey700),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     ),
-    margin: EdgeInsets.all(AppSizes.s10),
   );
 
-  ScaffoldMessenger.of(context).showSnackBar(snackBar);
+  messenger.showSnackBar(snack);
 }

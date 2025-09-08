@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Import necessário
 import 'package:flutter_pandyzer/core/app_colors.dart';
 import 'package:flutter_pandyzer/core/app_font_size.dart';
 import 'package:flutter_pandyzer/core/app_sizes.dart';
@@ -14,6 +15,12 @@ class AppTextField extends StatelessWidget {
   final double? width;
   final bool? obscureText;
   final bool enabled;
+  final TextInputType? keyboardType;
+  final List<TextInputFormatter>? inputFormatters;
+
+  // 🔥 Novo
+  final Widget? suffixIcon;
+  final Widget? prefixIcon;
 
   const AppTextField({
     super.key,
@@ -24,6 +31,10 @@ class AppTextField extends StatelessWidget {
     this.width,
     this.obscureText,
     this.enabled = true,
+    this.keyboardType,
+    this.inputFormatters,
+    this.suffixIcon,
+    this.prefixIcon,
   });
 
   @override
@@ -34,13 +45,20 @@ class AppTextField extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          appText(text: label, color: AppColors.black, fontSize: AppFontSize.fs15, fontWeight: FontWeight.bold),
+          appText(
+            text: label,
+            color: AppColors.black,
+            fontSize: AppFontSize.fs15,
+            fontWeight: FontWeight.bold,
+          ),
           appSizedBox(height: AppSpacing.small),
           TextFormField(
             controller: controller,
             initialValue: controller == null ? initialValue : null,
             enabled: enabled,
             obscureText: obscureText ?? false,
+            keyboardType: keyboardType,
+            inputFormatters: inputFormatters,
             style: TextStyle(
               fontSize: AppFontSize.fs15,
               color: enabled ? AppColors.black : AppColors.grey700,
@@ -60,8 +78,12 @@ class AppTextField extends StatelessWidget {
                 borderSide: BorderSide(color: AppColors.grey300, width: 1),
                 borderRadius: BorderRadius.circular(AppSizes.s10),
               ),
-              hintText: label,
+              hintText: label.replaceAll(' *', ''), // Remove o * do placeholder
               hintStyle: TextStyle(color: AppColors.grey800),
+
+              // 🔥 Suporte a ícones
+              suffixIcon: suffixIcon,
+              prefixIcon: prefixIcon,
             ),
           ),
         ],

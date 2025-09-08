@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_pandyzer/core/http_client.dart';
+import 'package:flutter_pandyzer/structure/http/models/DashboardIndicators.dart';
 import 'package:flutter_pandyzer/structure/http/models/User.dart';
 
 mixin UsuarioService {

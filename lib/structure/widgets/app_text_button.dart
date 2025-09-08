@@ -59,21 +59,24 @@ class AppTextButton extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: borderRadius ?? BorderRadius.circular(8),
           ),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: [
-            appText(
-              text: text,
-              color: textColor ?? AppColors.white,
-              fontSize: fontSize,
-              overflow: TextOverflow.ellipsis,
-            ),
             if (icon != null) ...[
-              const SizedBox(width: 8),
               Icon(icon, size: iconSize, color: textColor ?? AppColors.white),
+              const SizedBox(width: 8),
             ],
+            Flexible(
+              child: appText(
+                text: text,
+                color: textColor ?? AppColors.white,
+                fontSize: fontSize,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
       ),

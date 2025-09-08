@@ -1,111 +1,138 @@
+// lib/structure/http/services/avaliador_service.dart
 import 'dart:convert';
+import 'package:http/http.dart' as http;
 
-import 'package:flutter_pandyzer/core/http_client.dart';
 import 'package:flutter_pandyzer/structure/http/models/Evaluator.dart';
+import 'package:flutter_pandyzer/structure/http/models/Problem.dart';
 
-mixin AvaliadorService {
+class AvaliadorService {
+  // Controllers do back:
+  // - EvaluatorController  => /evaluators
+  // - ProblemController    => /problems
+  static const String baseUrl = "http://localhost:8080/evaluators";
+  static const String problemsBaseUrl = "http://localhost:8080/problems";
 
-  static String rota = '/evaluators';
+  /// Lista os avaliadores de uma avaliação
+  static Future<List<Evaluator>> getByEvaluation(int evaluationId) async {
+    final resp = await http.get(Uri.parse("$baseUrl/evaluation/$evaluationId"));
+    if (resp.statusCode == 200) {
+      final List<dynamic> jsonList = jsonDecode(resp.body);
+      return jsonList.map((e) => Evaluator.fromJson(e)).toList();
+    }
+    throw Exception(
+      "Erro ao buscar avaliadores da avaliação $evaluationId "
+          "(${resp.statusCode}) ${resp.body}",
+    );
+  }
 
-  static Future<List<Evaluator>> getAvaliadores() async {
-    try {
-      final response = await HttpClient.get(rota);
+  /// Cria um avaliador
+  static Future<Evaluator> create(Evaluator evaluator) async {
+    final resp = await http.post(
+      Uri.parse(baseUrl),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode(evaluator.toJson()),
+    );
+    if (resp.statusCode == 201 || resp.statusCode == 200) {
+      return Evaluator.fromJson(jsonDecode(resp.body));
+    }
+    throw Exception("Erro ao criar avaliador (${resp.statusCode}) ${resp.body}");
+  }
 
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        return data.map((item) => Evaluator.fromJson(item)).toList();
-      } else {
-        throw Exception('Erro ao buscar avaliadores: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Erro ao buscar avaliadores');
+  /// Deleta um avaliador pelo ID (id do registro de Evaluator)
+  static Future<void> delete(int evaluatorId) async {
+    final resp = await http.delete(Uri.parse("$baseUrl/$evaluatorId"));
+    if (resp.statusCode != 204 && resp.statusCode != 200) {
+      throw Exception(
+        "Erro ao excluir avaliador $evaluatorId "
+            "(${resp.statusCode}) ${resp.body}",
+      );
     }
   }
 
-  static Future<Evaluator> getAvaliadorById(int id) async {
-    try {
-      final response = await HttpClient.get('$rota/$id');
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return Evaluator.fromJson(data);
-      } else {
-        throw Exception('Erro ao buscar avaliador: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Erro ao buscar avaliador');
+  /// Atualiza o status do avaliador (idUser, idEvaluation, idStatus)
+  /// Backend: PUT /evaluators/{idUser}/{idEvaluation}/status/{idStatus}
+  /// IMPORTANTE: [evaluatorId] aqui é o **id do USUÁRIO** (idUser no back)
+  static Future<Evaluator> updateStatus({
+    required int evaluatorId,   // idUser
+    required int evaluationId,
+    required int statusId,
+  }) async {
+    final resp = await http.put(
+      Uri.parse("$baseUrl/$evaluatorId/$evaluationId/status/$statusId"),
+      headers: {"Content-Type": "application/json"},
+    );
+    if (resp.statusCode == 200) {
+      return Evaluator.fromJson(jsonDecode(resp.body));
     }
+    throw Exception(
+      "Erro ao atualizar status (user=$evaluatorId, eval=$evaluationId, status=$statusId) "
+          "(${resp.statusCode}) ${resp.body}",
+    );
   }
 
-  static Future<List<Evaluator>> getEvaluatorsByIdEvaluation (int idEvaluation) async {
-    try {
-
-      final response = await HttpClient.get('$rota/evaluation/$idEvaluation');
-
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        return data.map((item) => Evaluator.fromJson(item)).toList();
-      } else {
-        throw Exception('Erro ao buscar avaliadores: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Erro ao buscar avaliadores');
-    }
+  /// Inicia a avaliação
+  /// (seu fluxo pode mapear 'Em andamento' / 'Concluído' por ID; ajuste o statusId aqui se precisar)
+  static Future<Evaluator> startEvaluation({
+    required int evaluatorId,   // idUser
+    required int evaluationId,
+  }) {
+    return updateStatus(
+      evaluatorId: evaluatorId,
+      evaluationId: evaluationId,
+      statusId: 1, // ajuste se o "iniciar" não for 1 no seu back
+    );
   }
 
-  static Future<void> postAvaliador(Evaluator avaliador) async {
-    try {
-      final response = await HttpClient.post(rota, body: avaliador.toJson());
+  // ==================== PROBLEMAS (usa ProblemController) ====================
 
-      if (response.statusCode != 201) {
-        throw Exception('Erro ao criar avaliador: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Erro ao criar avaliador');
+  /// Lista problemas por objetivo e usuário avaliador
+  /// Backend: GET /problems/objectives/{objectiveId}/users/{userId}
+  static Future<List<Problem>> getProblemsByObjectiveAndEvaluator({
+    required int objectiveId,
+    required int evaluatorUserId,
+  }) async {
+    final resp = await http.get(
+      Uri.parse("$problemsBaseUrl/objectives/$objectiveId/users/$evaluatorUserId"),
+    );
+    if (resp.statusCode == 200) {
+      final List<dynamic> jsonList = jsonDecode(resp.body);
+      return jsonList.map((e) => Problem.fromJson(e)).toList();
     }
+    throw Exception(
+      "Erro ao buscar problemas (objective=$objectiveId / user=$evaluatorUserId) "
+          "(${resp.statusCode}) ${resp.body}",
+    );
   }
 
-  static Future<void> putAvaliador(Evaluator avaliador) async {
-    if (avaliador.id == null) {
-      throw Exception('ID do avaliador é obrigatório para atualização.');
-    }
-
-    try {
-      final response = await HttpClient.put('$rota/${avaliador.id}', body: avaliador.toJson());
-
-      if (response.statusCode != 200) {
-        throw Exception('Erro ao atualizar avaliador: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Erro ao atualizar avaliador');
-    }
+  /// Alias para compatibilidade
+  static Future<List<Problem>> getProblems({
+    required int objectiveId,
+    required int evaluatorUserId,
+  }) {
+    return getProblemsByObjectiveAndEvaluator(
+      objectiveId: objectiveId,
+      evaluatorUserId: evaluatorUserId,
+    );
   }
 
-  static Future<void> updateEvaluatorStatus(int evaluatorId, int statusId, int evaluationId) async{
-    if (evaluatorId == 0) {
-      throw Exception('ID do avaliador é obrigatório para atualização do status.');
-    }
-
-    try {
-      final response = await HttpClient.put('$rota/$evaluatorId/$evaluationId/status/$statusId');
-
-      if (response.statusCode != 200) {
-        throw Exception('Erro ao atualizar status do avaliador: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Erro ao atualizar avaliador');
-    }
+  /// Fallback para remoção (sem endpoint dedicado no back)
+  static Future<void> deleteFromEvaluation({
+    required int evaluatorId,
+    required int evaluationId,
+  }) async {
+    await delete(evaluatorId);
   }
 
-  static Future<void> deleteAvaliador(int id) async {
-    try {
-      final response = await HttpClient.delete('$rota/$id');
-
-      if (response.statusCode != 204) {
-        throw Exception('Erro ao deletar avaliador: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Erro ao deletar avaliador');
-    }
+  // ===== ALIAS para compatibilidade com chamadas antigas =====
+  static Future<Evaluator> updateEvaluatorStatus({
+    required int evaluatorId,
+    required int evaluationId,
+    required int statusId,
+  }) {
+    return updateStatus(
+      evaluatorId: evaluatorId,
+      evaluationId: evaluationId,
+      statusId: statusId,
+    );
   }
 }

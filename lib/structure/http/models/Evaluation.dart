@@ -1,5 +1,5 @@
-import 'package:flutter_pandyzer/structure/http/models/ApplicationType.dart';
-import 'package:flutter_pandyzer/structure/http/models/User.dart';
+import 'ApplicationType.dart';
+import 'User.dart';
 
 class Evaluation {
   int? id;
@@ -11,10 +11,12 @@ class Evaluation {
   ApplicationType? applicationType;
   User? user;
   int? completedEvaluationsCount;
-
-  // Campos calculados no frontend para controlar a UI
+  int? notStartedEvaluationsCount;      // 👈 novo
+  int? totalEvaluatorsCount;            // 👈 novo
   bool isCurrentUserAnEvaluator;
   bool currentUserHasProblems;
+  bool isPublic;
+  int? evaluatorsLimit;
 
   Evaluation({
     this.id,
@@ -26,8 +28,12 @@ class Evaluation {
     this.applicationType,
     this.user,
     this.completedEvaluationsCount,
+    this.notStartedEvaluationsCount,   // 👈 novo
+    this.totalEvaluatorsCount,         // 👈 novo
     this.isCurrentUserAnEvaluator = false,
     this.currentUserHasProblems = false,
+    this.isPublic = false,
+    this.evaluatorsLimit,
   });
 
   factory Evaluation.fromJson(Map<String, dynamic> json) {
@@ -43,7 +49,10 @@ class Evaluation {
           : null,
       user: json['user'] != null ? User.fromJson(json['user']) : null,
       completedEvaluationsCount: json['completedEvaluationsCount'],
-      // Estes campos não vêm do JSON, serão populados no BLoC
+      isPublic: (json['isPublic'] ?? json['public'] ?? false) == true,
+      evaluatorsLimit: json['evaluatorsLimit'],
+      // notStartedEvaluationsCount e totalEvaluatorsCount não vêm do JSON,
+      // o Bloc preenche depois
     );
   }
 
@@ -61,6 +70,8 @@ class Evaluation {
     if (user != null) {
       data['user'] = user!.toJson();
     }
+    data['public'] = isPublic;
+    data['evaluatorsLimit'] = evaluatorsLimit;
     return data;
   }
 }
