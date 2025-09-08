@@ -1,93 +1,29 @@
 import 'dart:convert';
-
-import 'package:flutter_pandyzer/core/http_client.dart';
+import 'package:http/http.dart' as http;
 import 'package:flutter_pandyzer/structure/http/models/Status.dart';
 
-mixin StatusService {
+class StatusService {
+  static const String baseUrl = "http://localhost:8080/status";
 
-  static String rota = '/status';
-
-  static Future<List<Status>> getStatus() async {
-    try {
-      final response = await HttpClient.get(rota);
-
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        return data.map((item) => Status.fromJson(item)).toList();
-      } else {
-        throw Exception('Erro ao buscar status: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Erro ao buscar status');
+  // ===== Nomes padronizados que o repository espera =====
+  static Future<List<Status>> getAll() async {
+    final response = await http.get(Uri.parse(baseUrl));
+    if (response.statusCode == 200) {
+      final List<dynamic> jsonList = jsonDecode(response.body);
+      return jsonList.map((e) => Status.fromJson(e)).toList();
     }
+    throw Exception("Erro ao buscar statuses: ${response.statusCode}");
   }
 
-  static Future<List<Status>> getStatuses() async {
-    try {
-      final response = await HttpClient.get(rota);
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
-        return data.map((item) => Status.fromJson(item)).toList();
-      } else {
-        throw Exception('Erro ao buscar status: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Erro ao buscar status: $e');
+  static Future<Status> getById(int id) async {
+    final response = await http.get(Uri.parse("$baseUrl/$id"));
+    if (response.statusCode == 200) {
+      return Status.fromJson(jsonDecode(response.body));
     }
+    throw Exception("Erro ao buscar status $id: ${response.statusCode}");
   }
 
-  static Future<Status> getStatusById(int id) async {
-    try {
-      final response = await HttpClient.get('$rota/$id');
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return Status.fromJson(data);
-      } else {
-        throw Exception('Erro ao buscar status: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Erro ao buscar status');
-    }
-  }
-
-  static Future<void> postStatus(Status status) async {
-    try {
-      final response = await HttpClient.post(rota, body: status.toJson());
-
-      if (response.statusCode != 201) {
-        throw Exception('Erro ao criar status: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Erro ao criar status');
-    }
-  }
-
-  static Future<void> putStatus(Status status) async {
-    if (status.id == null) {
-      throw Exception('ID do status é obrigatório para atualização.');
-    }
-
-    try {
-      final response = await HttpClient.put('$rota/${status.id}', body: status.toJson());
-
-      if (response.statusCode != 200) {
-        throw Exception('Erro ao atualizar status: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Erro ao atualizar status');
-    }
-  }
-
-  static Future<void> deleteStatus(int id) async {
-    try {
-      final response = await HttpClient.delete('$rota/$id');
-
-      if (response.statusCode != 204) {
-        throw Exception('Erro ao deletar status: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Erro ao deletar status');
-    }
-  }
+  // ===== Aliases (backward compatibility) =====
+  static Future<List<Status>> getStatuses() => getAll();
+  static Future<Status> getStatusById(int id) => getById(id);
 }

@@ -1,122 +1,168 @@
-import 'package:bloc/bloc.dart';
-import 'package:collection/collection.dart';
-import 'package:flutter_pandyzer/structure/http/models/Evaluation.dart';
-import 'package:flutter_pandyzer/structure/http/models/Heuristic.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_pandyzer/structure/http/models/Evaluator.dart';
 import 'package:flutter_pandyzer/structure/http/models/Problem.dart';
-import 'package:flutter_pandyzer/structure/http/models/Severity.dart';
-import 'package:flutter_pandyzer/structure/pages/problema/problema_event.dart';
-import 'package:flutter_pandyzer/structure/pages/problema/problema_repository.dart';
-import 'package:flutter_pandyzer/structure/pages/problema/problema_state.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_pandyzer/structure/http/models/User.dart';
+
+import 'problema_event.dart';
+import 'problema_state.dart';
+import 'problema_repository.dart';
 
 class ProblemaBloc extends Bloc<ProblemaEvent, ProblemaState> {
-  ProblemaBloc() : super(ProblemaInitial()) {
+  ProblemaBloc() : super(const ProblemaInitial()) {
+    // ====== LOAD ======
     on<LoadProblemaPageData>((event, emit) async {
-      emit(ProblemaLoading(oldState: state));
+      emit(ProblemaLoading.fromOld(state));
       try {
-        final objectives = await ProblemaRepository.getObjectivesByEvaluationId(event.evaluationId);
-        List<Problem> allProblemsForEvaluator = [];
+        final evaluation =
+        await ProblemaRepository.getEvaluationById(event.evaluationId);
 
-        await Future.forEach(objectives, (objective) async {
-          if (objective.id != null) {
-            final problems = await ProblemaRepository.getProblemsByIdObjetivoAndIdEvaluator(
-              objective.id!,
-              event.evaluatorId,
-            );
-            allProblemsForEvaluator.addAll(problems);
-          }
-        });
+        final objectives =
+        await ProblemaRepository.getObjectives(event.evaluationId);
 
-        final evaluators = await ProblemaRepository.getEvaluatorsByIdEvaluation(event.evaluationId);
-        final currentUserEvaluator = evaluators.firstWhereOrNull(
-              (evaluator) => evaluator.user?.id == event.evaluatorId,
-        );
+        final heuristics = await ProblemaRepository.getHeuristics();
+        final severities = await ProblemaRepository.getSeverities();
 
-        final results = await Future.wait([
-          ProblemaRepository.getAvaliacoesById(event.evaluationId),
-          ProblemaRepository.getHeuristics(),
-          ProblemaRepository.getSeverities(),
-        ]);
+        // Descobre o status atual do USUÁRIO avaliador (na lista de evaluators da avaliação)
+        final evaluators =
+        await ProblemaRepository.getEvaluatorsByEvaluation(event.evaluationId);
+
+        int? currentStatusId;
+        try {
+          final Evaluator me = evaluators
+              .firstWhere((e) => e.user?.id == event.evaluatorUserId);
+          currentStatusId = me.status?.id;
+        } catch (_) {
+          currentStatusId = null;
+        }
+
+        // Carrega os problemas do USUÁRIO avaliador para cada objetivo
+        final List<Problem> initialProblems = [];
+        for (final obj in objectives) {
+          if (obj.id == null) continue;
+          final probs = await ProblemaRepository.getProblemsByObjectiveAndUser(
+            objectiveId: obj.id!,
+            userId: event.evaluatorUserId,
+          );
+          initialProblems.addAll(probs);
+        }
 
         emit(ProblemaLoaded(
-          evaluation: results[0] as Evaluation,
-          objectives: objectives,
-          heuristics: results[1] as List<Heuristic>,
-          severities: results[2] as List<Severity>,
-          initialProblems: allProblemsForEvaluator,
-          currentUserStatusId: currentUserEvaluator?.status?.id,
+          evaluation_: evaluation,
+          objectives_: objectives,
+          heuristics_: heuristics,
+          severities_: severities,
+          initialProblems_: initialProblems,
+          currentUserStatusId_: currentStatusId,
         ));
       } catch (e) {
-        emit(ProblemaError(e.toString()));
-      }
-    });
-
-    on<UpdateProblems>((event, emit) async {
-      emit(ProblemaLoading(oldState: state));
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        final userId = prefs.getString('userId');
-        if (userId == null) {
-          emit(const ProblemaError("Usuário não autenticado."));
-          return;
-        }
-
-        final currentUser = await ProblemaRepository.getUsuarioById(int.parse(userId));
-        final now = DateTime.now().toIso8601String();
-
-        final List<Future> operations = [];
-
-        for (final problemId in event.problemIdsToDelete) {
-          operations.add(ProblemaRepository.deleteProblem(problemId));
-        }
-
-        for (final problem in event.problemsToUpsert) {
-          problem.user = currentUser;
-          problem.register = now;
-
-          if (problem.id == null) {
-            operations.add(ProblemaRepository.createProblema(problem));
-          } else {
-            operations.add(ProblemaRepository.updateProblem(problem));
-          }
-        }
-        await Future.wait(operations);
-
-        // --- LÓGICA MODIFICADA ---
-        // 1. Emite o estado de sucesso para o listener da UI mostrar o Toast.
-        emit(ProblemaSaveSuccess(
+        emit(ProblemaError(
+          message: e.toString(),
           evaluation: state.evaluation,
           objectives: state.objectives,
-          heuristics: state.heuristics,
-          severities: state.severities,
-          initialProblems: state.initialProblems,
+          heuristics: state.heuristics ?? const [],
+          severities: state.severities ?? const [],
+          initialProblems: state.initialProblems ?? const [],
           currentUserStatusId: state.currentUserStatusId,
         ));
-
-        // 2. Dispara o evento para recarregar os dados da página atual.
-        add(LoadProblemaPageData(
-          evaluationId: event.evaluationId,
-          evaluatorId: event.evaluatorId,
-        ));
-
-      } catch (e) {
-        emit(ProblemaError(e.toString()));
       }
     });
 
+    // ====== UPSERT / DELETE PROBLEMS ======
+    on<UpdateProblems>((event, emit) async {
+      emit(ProblemaLoading.fromOld(state));
 
-    on<FinalizeEvaluation>((event, emit) async {
-      emit(ProblemaLoading(oldState: state));
       try {
-        await ProblemaRepository.updateEvaluatorStatus(
-          event.evaluatorId,
-          event.statusId,
-          event.evaluationId,
+        // Apaga os removidos
+        for (final id in event.problemIdsToDelete) {
+          await ProblemaRepository.deleteProblem(id);
+        }
+
+        // Insere/atualiza os restantes
+        for (final p in event.problemsToUpsert) {
+          // GARANTIR usuário do avaliador
+          p.user ??= User(id: event.evaluatorUserId);
+
+          // Validações simples
+          if (p.objective?.id == null) {
+            throw Exception('Problema sem objetivo.');
+          }
+          if (p.heuristic?.id == null) {
+            throw Exception('Selecione uma heurística.');
+          }
+          if (p.severity?.id == null) {
+            throw Exception('Selecione uma severidade.');
+          }
+
+          await ProblemaRepository.upsertProblem(p);
+        }
+
+        // Recarrega os problemas (para refletir ids recém-criados etc.)
+        final refreshed = await _reloadProblemsForUser(
+          evaluationId: event.evaluationId,
+          evaluatorUserId: event.evaluatorUserId,
         );
+
+        emit(ProblemaSaveSuccess(
+          evaluation_: state.evaluation!,
+          objectives_: state.objectives,
+          heuristics_: state.heuristics ?? const [],
+          severities_: state.severities ?? const [],
+          initialProblems_: refreshed,
+          currentUserStatusId_: state.currentUserStatusId,
+        ));
+      } catch (e) {
+        emit(ProblemaError(
+          message: e.toString(),
+          evaluation: state.evaluation,
+          objectives: state.objectives,
+          heuristics: state.heuristics ?? const [],
+          severities: state.severities ?? const [],
+          initialProblems: state.initialProblems ?? const [],
+          currentUserStatusId: state.currentUserStatusId,
+        ));
+      }
+    });
+
+    // ====== FINALIZE ======
+    on<FinalizeEvaluation>((event, emit) async {
+      emit(ProblemaLoading.fromOld(state));
+      try {
+        await ProblemaRepository.finalizeEvaluation(
+          evaluatorUserId: event.evaluatorUserId,
+          evaluationId: event.evaluationId,
+          statusId: event.statusId, // ex.: 2 = Concluída
+        );
+
         emit(const ProblemaFinalizeSuccess());
       } catch (e) {
-        emit(ProblemaError(e.toString()));
+        emit(ProblemaError(
+          message: e.toString(),
+          evaluation: state.evaluation,
+          objectives: state.objectives,
+          heuristics: state.heuristics ?? const [],
+          severities: state.severities ?? const [],
+          initialProblems: state.initialProblems ?? const [],
+          currentUserStatusId: state.currentUserStatusId,
+        ));
       }
     });
+  }
+
+  Future<List<Problem>> _reloadProblemsForUser({
+    required int evaluationId,
+    required int evaluatorUserId,
+  }) async {
+    final objectives = await ProblemaRepository.getObjectives(evaluationId);
+    final List<Problem> all = [];
+    for (final o in objectives) {
+      if (o.id != null) {
+        final lista = await ProblemaRepository.getProblemsByObjectiveAndUser(
+          objectiveId: o.id!,
+          userId: evaluatorUserId,
+        );
+        all.addAll(lista);
+      }
+    }
+    return all;
   }
 }

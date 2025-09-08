@@ -1,3 +1,4 @@
+// lib/structure/pages/avaliacoes/avaliacoes_event.dart
 import 'package:flutter_pandyzer/structure/http/models/ApplicationType.dart';
 import 'package:flutter_pandyzer/structure/http/models/Status.dart';
 import 'package:flutter_pandyzer/structure/http/models/User.dart';
@@ -8,7 +9,6 @@ class LoadAvaliacoesEvent extends AvaliacoesEvent {}
 
 class AddAvaliacaoEvent extends AvaliacoesEvent {
   final String avaliacao;
-
   AddAvaliacaoEvent(this.avaliacao);
 }
 
@@ -16,28 +16,27 @@ class LoadCamposCadastroAvaliacao extends AvaliacoesEvent {}
 
 class ApplyFiltersEvent extends AvaliacoesEvent {
   final String? description;
-  final String? startDate;
-  final String? finalDate;
+  final int? creatorId;   // <- novo
   final Status? status;
 
   ApplyFiltersEvent({
     this.description,
-    this.startDate,
-    this.finalDate,
+    this.creatorId,       // <- novo
     this.status,
   });
 }
 
+
 class CadastrarAvaliacaoEvent extends AvaliacoesEvent {
-  String descricao;
-  String link;
-  String dataInicio;
-  String dataFim;
-  ApplicationType tipoAplicacao;
-  List<String> objetivos;
-  List<User> avaliadores;
-  bool isPublic;
-  int limit;
+  final String descricao;
+  final String link;
+  final String dataInicio;
+  final String dataFim;
+  final ApplicationType tipoAplicacao;
+  final List<String> objetivos;
+  final List<User> avaliadores;
+  final bool isPublic;
+  final int limit;
 
   CadastrarAvaliacaoEvent({
     required this.descricao,
@@ -57,12 +56,25 @@ class LoadEvaluationDetailsEvent extends AvaliacoesEvent {
   LoadEvaluationDetailsEvent(this.evaluationId);
 }
 
+/// Iniciar avaliação para um avaliador.
+/// IMPORTANTE: aqui é o **id do USUÁRIO** do avaliador, não o id do registro Evaluator.
 class StartEvaluationEvent extends AvaliacoesEvent {
-  final int evaluatorId;
+  /// ID do registro na tabela Evaluator (evaluator.id)
+  final int evaluatorRecordId;
+
+  /// ID do usuário do avaliador (evaluator.user.id)
+  final int evaluatorUserId;
+
+  /// ID da avaliação
   final int evaluationId;
 
-  StartEvaluationEvent({required this.evaluatorId, required this.evaluationId});
+  StartEvaluationEvent({
+    required this.evaluatorRecordId,
+    required this.evaluatorUserId,
+    required this.evaluationId,
+  });
 }
+
 
 class UpdateAvaliacaoEvent extends AvaliacoesEvent {
   final int id;
@@ -95,8 +107,32 @@ class DeleteAvaliacaoEvent extends AvaliacoesEvent {
   DeleteAvaliacaoEvent(this.evaluationId);
 }
 
+/// Remover avaliador e apagar os problemas dele.
+/// Precisamos dos DOIS ids:
+/// - evaluatorRecordId: id do registro na tabela Evaluator (para deletar o vínculo)
+/// - evaluatorUserId: id do usuário (para buscar/apagar problemas e/ou atualizar status)
 class DeleteEvaluatorAndProblems extends AvaliacoesEvent {
-  final int evaluatorId;
+  final int evaluatorRecordId; // ex.: evaluator.id!
+  final int evaluatorUserId;   // ex.: evaluator.user!.id!
   final int evaluationId;
-  DeleteEvaluatorAndProblems({required this.evaluatorId, required this.evaluationId});
+
+  DeleteEvaluatorAndProblems({
+    required this.evaluatorRecordId,
+    required this.evaluatorUserId,
+    required this.evaluationId,
+  });
+}
+
+/// Finalizar avaliação (normalmente statusId = 2).
+/// Também usa id do USUÁRIO do avaliador.
+class FinalizeEvaluation extends AvaliacoesEvent {
+  final int evaluatorUserId;
+  final int evaluationId;
+  final int statusId; // geralmente 2
+
+  FinalizeEvaluation({
+    required this.evaluatorUserId,
+    required this.evaluationId,
+    this.statusId = 2,
+  });
 }

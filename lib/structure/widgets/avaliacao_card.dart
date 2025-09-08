@@ -11,14 +11,23 @@ import 'package:flutter_pandyzer/structure/widgets/app_text.dart';
 class AvaliacaoCard extends StatelessWidget {
   final Evaluation evaluation;
   final bool isOwner;
+
   final VoidCallback onView;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
-  final VoidCallback onPerform;
 
-  // --- PARÂMETROS ADICIONADOS ---
+  /// Antes: sempre usava onPerform (iniciar/continuar)
+  /// Agora: quando [showJoinButton] == true mostramos “Ingressar”
+  final VoidCallback onPerform;
+  final VoidCallback? onJoin;
+
+  // compat antigo
   final bool isCurrentUserAnEvaluator;
   final bool currentUserHasStarted;
+
+  /// NOVO: mostrar botão “Ingressar” (quando avaliador logado
+  /// não faz parte de uma avaliação pública com vagas)
+  final bool showJoinButton;
 
   const AvaliacaoCard({
     super.key,
@@ -28,104 +37,219 @@ class AvaliacaoCard extends StatelessWidget {
     required this.onEdit,
     required this.onDelete,
     required this.onPerform,
-    // --- PARÂMETROS ADICIONADOS NO CONSTRUTOR ---
     required this.isCurrentUserAnEvaluator,
     required this.currentUserHasStarted,
+    this.showJoinButton = false,
+    this.onJoin,
   });
 
   @override
   Widget build(BuildContext context) {
+    final status = _computeStatus(evaluation);
+    final start = AppConvert.convertIsoDateToFormattedDate(evaluation.startDate);
+    final end   = AppConvert.convertIsoDateToFormattedDate(evaluation.finalDate);
+
     return Container(
       margin: const EdgeInsets.symmetric(vertical: AppSpacing.normal),
-      padding: const EdgeInsets.all(AppSpacing.medium),
+      padding: const EdgeInsets.all(AppSpacing.big),
       decoration: BoxDecoration(
         color: AppColors.grey900,
-        borderRadius: BorderRadius.circular(15.0),
-        border: Border.all(color: AppColors.grey800),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.grey800, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          appText(
-            text: evaluation.description ?? AppStrings.descricaoDaAvaliacao,
-            fontSize: AppFontSize.fs18,
-            fontWeight: FontWeight.bold,
-            color: AppColors.white,
-          ),
-          const SizedBox(height: 10),
+          // título + chips
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              appText(
-                text: 'Data de Início: ${AppConvert.convertIsoDateToFormattedDate(evaluation.startDate)}',
-                fontSize: AppFontSize.fs14,
-                color: AppColors.white,
+              Expanded(
+                child: appText(
+                  text: evaluation.description ?? AppStrings.descricaoDaAvaliacao,
+                  fontSize: AppFontSize.fs18,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.white,
+                ),
               ),
-              appText(
-                text: 'Data de Entrega: ${AppConvert.convertIsoDateToFormattedDate(evaluation.finalDate)}',
-                fontSize: AppFontSize.fs14,
-                color: AppColors.white,
-              ),
-            ],
-          ),
-          const SizedBox(height: 15),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
+              const SizedBox(width: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
                 children: [
-                  const Icon(AppIcons.person, color: AppColors.white, size: 18),
-                  const SizedBox(width: 10),
-                  appText(
-                    text: evaluation.user?.name ?? AppStrings.nomeDoUsuario,
-                    fontSize: AppFontSize.fs14,
-                    color: AppColors.white,
-                  ),
-                ],
-              ),
-              Row(
-                children: [
-                  appText(
-                    text: 'Concluídas: ${evaluation.completedEvaluationsCount ?? 0}',
-                    fontSize: AppFontSize.fs14,
-                    color: AppColors.white,
-                  ),
-                  const SizedBox(width: AppSpacing.normal),
-
-                  // --- LÓGICA DO BOTÃO DE AÇÃO ATUALIZADA ---
-                  if (isCurrentUserAnEvaluator)
-                    IconButton(
-                      tooltip: currentUserHasStarted ? 'Continuar Avaliação' : 'Iniciar Avaliação',
-                      icon: Icon(
-                        currentUserHasStarted ? Icons.playlist_add_check : Icons.play_circle_outline,
-                        color: AppColors.white,
-                      ),
-                      onPressed: onPerform,
-                    ),
-
-                  IconButton(
-                    tooltip: 'Visualizar Detalhes',
-                    icon: const Icon(AppIcons.view, color: AppColors.white),
-                    onPressed: onView,
-                  ),
-
-                  if (isOwner) ...[
-                    IconButton(
-                      tooltip: 'Editar Avaliação',
-                      icon: const Icon(AppIcons.edit, color: AppColors.white),
-                      onPressed: onEdit,
-                    ),
-                    IconButton(
-                      tooltip: 'Excluir Avaliação',
-                      icon: Icon(AppIcons.delete, color: AppColors.red300),
-                      onPressed: onDelete,
-                    ),
-                  ]
+                  _StatusChip(text: status.label, color: status.color),
+                  if (evaluation.isPublic)
+                    const _Pill(icon: AppIcons.public, label: 'Pública')
+                  else
+                    const _Pill(icon: Icons.lock_outline, label: 'Privada'),
+                  if (evaluation.isPublic && (evaluation.evaluatorsLimit ?? 0) > 0)
+                    _Pill(icon: AppIcons.users, label: 'Limite ${evaluation.evaluatorsLimit}'),
                 ],
               ),
             ],
-          )
+          ),
+          const SizedBox(height: 12),
+
+          // infos
+          Row(
+            children: [
+              _IconText(icon: AppIcons.calendar, text: 'Início: $start'),
+              const SizedBox(width: 20),
+              _IconText(icon: AppIcons.calendar, text: 'Entrega: $end'),
+              const Spacer(),
+              _IconText(icon: AppIcons.person, text: evaluation.user?.name ?? AppStrings.nomeDoUsuario),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Divider(color: Colors.white12, height: 24),
+
+          // ações
+          Row(
+            children: [
+              if (showJoinButton)
+                _FilledAction(
+                  label: 'Ingressar',
+                  icon: Icons.person_add_alt_1,
+                  onPressed: onJoin, // pode ser null => disabled
+                )
+              else if (isCurrentUserAnEvaluator)
+                _ActionButton(
+                  tooltip: currentUserHasStarted ? 'Continuar' : 'Iniciar',
+                  icon: currentUserHasStarted ? Icons.playlist_add_check : Icons.play_circle_outline,
+                  onPressed: onPerform,
+                ),
+              _ActionButton(tooltip: 'Detalhes', icon: AppIcons.view, onPressed: onView),
+              if (isOwner) ...[
+                _ActionButton(tooltip: 'Editar', icon: AppIcons.edit, onPressed: onEdit),
+                _ActionButton(tooltip: 'Excluir', icon: AppIcons.delete, onPressed: onDelete, color: AppColors.red300),
+              ],
+              const Spacer(),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+
+  // ----------------- helpers visuais -----------------
+  /// Calcula o status geral da avaliação a partir dos contadores
+  /// preenchidos no BLoC:
+  /// - totalEvaluatorsCount
+  /// - notStartedEvaluationsCount (status “Não iniciada”)
+  /// - completedEvaluationsCount  (status “Concluída”)
+  StatusInfo _computeStatus(Evaluation e) {
+    final int total       = e.totalEvaluatorsCount ?? 0;
+    final int notStarted  = e.notStartedEvaluationsCount ?? 0;
+    final int completed   = e.completedEvaluationsCount ?? 0;
+
+    if (total == 0 || notStarted == total) {
+      // Ninguém começou (ou sem avaliadores)
+      return StatusInfo('Não iniciada', AppColors.grey600);
+    }
+    if (completed == total) {
+      // Todos concluíram
+      return StatusInfo('Concluido', AppColors.green);
+    }
+    // Qualquer mistura restante significa que alguém começou e ainda faltam pessoas
+    return StatusInfo('Em andamento', AppColors.primary);
+  }
+}
+
+class StatusInfo { final String label; final Color color; StatusInfo(this.label, this.color); }
+
+class _Pill extends StatelessWidget {
+  final IconData icon; final String label;
+  const _Pill({required this.icon, required this.label});
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white10,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white24, width: 1),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, color: AppColors.white, size: 14),
+        const SizedBox(width: 6),
+        appText(text: label, color: AppColors.white, fontSize: AppFontSize.fs12, fontWeight: FontWeight.w600),
+      ]),
+    );
+  }
+}
+
+class _StatusChip extends StatelessWidget {
+  final String text; final Color color;
+  const _StatusChip({required this.text, required this.color});
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(.15),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color, width: 1),
+      ),
+      child: appText(text: text, color: Colors.white, fontWeight: FontWeight.w700, fontSize: AppFontSize.fs12),
+    );
+  }
+}
+
+class _IconText extends StatelessWidget {
+  final IconData icon; final String text;
+  const _IconText({required this.icon, required this.text});
+  @override
+  Widget build(BuildContext context) {
+    return Row(children: [
+      Icon(icon, color: AppColors.white, size: 16),
+      const SizedBox(width: 8),
+      appText(text: text, fontSize: AppFontSize.fs14, color: AppColors.white),
+    ]);
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  final String tooltip; final IconData icon; final VoidCallback onPressed; final Color? color;
+  const _ActionButton({required this.tooltip, required this.icon, required this.onPressed, this.color});
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          margin: const EdgeInsets.only(right: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.white24, width: 1)),
+          child: Icon(icon, color: color ?? AppColors.white, size: 18),
+        ),
+      ),
+    );
+  }
+}
+
+/// Botão primário preenchido (para "Ingressar")
+class _FilledAction extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final VoidCallback? onPressed;
+  const _FilledAction({required this.label, required this.icon, required this.onPressed});
+  @override
+  Widget build(BuildContext context) {
+    final disabled = onPressed == null;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: ElevatedButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 16),
+        label: Text(label),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: disabled ? AppColors.grey700 : AppColors.black,
+          foregroundColor: AppColors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
       ),
     );
   }

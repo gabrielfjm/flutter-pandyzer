@@ -1,5 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_pandyzer/core/app_convert.dart';
+
+// MODELS
 import 'package:flutter_pandyzer/structure/http/models/ApplicationType.dart';
 import 'package:flutter_pandyzer/structure/http/models/Evaluation.dart';
 import 'package:flutter_pandyzer/structure/http/models/EvaluationViewData.dart';
@@ -7,7 +9,10 @@ import 'package:flutter_pandyzer/structure/http/models/Evaluator.dart';
 import 'package:flutter_pandyzer/structure/http/models/Objective.dart';
 import 'package:flutter_pandyzer/structure/http/models/Status.dart';
 import 'package:flutter_pandyzer/structure/http/models/User.dart';
+
+// REPOSITORY
 import 'package:flutter_pandyzer/structure/pages/avaliacoes/avaliacoes_repository.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
 import 'avaliacoes_event.dart';
 import 'avaliacoes_state.dart';
@@ -18,30 +23,49 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
       emit(AvaliacoesLoading(oldState: state));
       try {
         final prefs = await SharedPreferences.getInstance();
-        final currentUserId = prefs.getString('userId');
-        if (currentUserId == null) throw Exception("Usuário não logado");
-        final parsedUserId = int.parse(currentUserId);
+        final userIdStr = prefs.getString('userId');
+        if (userIdStr == null) throw Exception('Usuário não logado');
+        final userId = int.parse(userIdStr);
 
+        // 1) pega tudo que me interessa
         final results = await Future.wait([
-          AvaliacoesRepository.getAvaliacoes(),
-          AvaliacoesRepository.getCommunityEvaluations(parsedUserId),
+          AvaliacoesRepository.getByCreator(userId),          // criei
+          AvaliacoesRepository.getByEvaluatorUser(userId),    // sou avaliador (N O V O)
+          AvaliacoesRepository.getCommunityEvaluations(userId), // públicas de outros
         ]);
 
-        final allEvaluations = results[0] as List<Evaluation>;
-        final communityEvaluations = results[1] as List<Evaluation>;
+        // 2) une criadas + onde sou avaliador (sem duplicar)
+        final created = results[0] as List<Evaluation>;
+        final asEvaluator = results[1] as List<Evaluation>;
+        final communityRaw = results[2] as List<Evaluation>;
 
-        final myActivitiesFutures = allEvaluations.map((e) => _processEvaluation(e, currentUserId)).toList();
-        final myActivitiesProcessed = await Future.wait(myActivitiesFutures);
-        final myActivitiesFiltered = myActivitiesProcessed
-            .where((v) => v.evaluation.isCurrentUserAnEvaluator || v.evaluation.user?.id.toString() == currentUserId)
+        final Map<int, Evaluation> mineMap = {};
+        for (final e in [...created, ...asEvaluator]) {
+          if (e.id != null) mineMap[e.id!] = e;
+        }
+        final mineList = mineMap.values.toList();
+
+        // 3) processa (descobrindo se sou avaliador e se tenho problemas etc.)
+        final myProcessed = await Future.wait(
+          mineList.map((e) => _processEvaluation(e, userIdStr)),
+        );
+        final communityProcessed = await Future.wait(
+          communityRaw.map((e) => _processEvaluation(e, userIdStr)),
+        );
+
+        // 4) guarda “minhas” (tudo que criei OU onde sou avaliador)
+        final myEvaluations = myProcessed;
+
+        // 5) comunidade = públicas que não estão em “minhas”
+        final myIds = myEvaluations.map((v) => v.evaluation.id).toSet();
+        final communityEvaluations = communityProcessed
+            .where((v) =>
+        v.evaluation.isPublic == true && !myIds.contains(v.evaluation.id))
             .toList();
 
-        final communityFutures = communityEvaluations.map((e) => _processEvaluation(e, currentUserId)).toList();
-        final communityActivitiesProcessed = await Future.wait(communityFutures);
-
         emit(AvaliacoesLoaded(
-          myEvaluations: myActivitiesFiltered,
-          communityEvaluations: communityActivitiesProcessed,
+          myEvaluations: myEvaluations,
+          communityEvaluations: communityEvaluations,
         ));
       } catch (e) {
         emit(AvaliacoesError(message: e.toString()));
@@ -52,16 +76,13 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
       emit(AvaliacoesLoading(oldState: state));
       try {
         final results = await Future.wait([
-          AvaliacoesRepository.getDominios(),
-          AvaliacoesRepository.getUsuariosAvaliadores(),
+          AvaliacoesRepository.getApplicationTypes(),
+          AvaliacoesRepository.getUsuariosAvaliadores(0),
         ]);
 
-        final dominios = results[0] as List<ApplicationType>;
-        final avaliadores = results[1] as List<User>;
-
         emit(AvaliacaoCamposLoaded(
-          dominios: dominios,
-          availableEvaluators: avaliadores,
+          dominios: results[0] as List<ApplicationType>,
+          availableEvaluators: results[1] as List<User>,
         ));
       } catch (e) {
         emit(AvaliacoesError(message: e.toString()));
@@ -72,79 +93,93 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
       emit(AvaliacoesLoading(oldState: state));
       try {
         final prefs = await SharedPreferences.getInstance();
-        final userId = prefs.getString('userId');
-        if (userId == null) {
-          emit(AvaliacoesError(message: "Usuário não autenticado."));
+        final userIdStr = prefs.getString('userId');
+        if (userIdStr == null) {
+          emit(AvaliacoesError(message: 'Usuário não autenticado.'));
           return;
         }
 
-        final creator = await AvaliacoesRepository.getUsuarioById(int.parse(userId));
-        final now = DateTime.now().toIso8601String();
+        final creator =
+        await AvaliacoesRepository.getUsuarioById(int.parse(userIdStr));
+        final nowIso = DateTime.now().toIso8601String();
 
-        List<User> finalAvaliadores = List.from(event.avaliadores);
-        if (finalAvaliadores.isEmpty && creator.userType?.description == 'Avaliador') {
-          finalAvaliadores.add(creator);
+        final avaliadores = List<User>.from(event.avaliadores);
+        if (avaliadores.isEmpty && (creator.userType?.description == 'Avaliador')) {
+          avaliadores.add(creator);
         }
 
-        Evaluation avaliacao = Evaluation(
+        final avaliacao = Evaluation(
           description: event.descricao,
           link: event.link,
           startDate: AppConvert.convertDateToIso(event.dataInicio),
           finalDate: AppConvert.convertDateToIso(event.dataFim),
           applicationType: event.tipoAplicacao,
           user: creator,
-          register: now,
+          register: nowIso,
           isPublic: event.isPublic,
           evaluatorsLimit: event.limit,
         );
 
-        Evaluation avaliacaoCadastrada = await AvaliacoesRepository.createAvaliacao(avaliacao);
+        final created = await AvaliacoesRepository.insertAvaliacao(avaliacao);
 
-        for (final objetivo in event.objetivos) {
-          Objective obj = Objective(description: objetivo, evaluation: avaliacaoCadastrada, register: now);
-          await AvaliacoesRepository.createObjetivo(obj);
+        for (final desc in event.objetivos) {
+          await AvaliacoesRepository.insertObjetivo(
+            Objective(description: desc, evaluation: created, register: nowIso),
+          );
         }
 
-        Status statusNaoIniciada = await AvaliacoesRepository.getStatusById(3);
+        final Status statusNaoIniciada =
+        await AvaliacoesRepository.getStatusById(3);
 
-        for (final userAvaliador in finalAvaliadores) {
-          final novoAvaliador = Evaluator(user: userAvaliador, evaluation: avaliacaoCadastrada, register: now, status: statusNaoIniciada);
-          await AvaliacoesRepository.createAvaliador(novoAvaliador);
+        for (final u in avaliadores) {
+          await AvaliacoesRepository.insertAvaliador(
+            Evaluator(
+              user: u,
+              evaluation: created,
+              register: nowIso,
+              status: statusNaoIniciada,
+            ),
+          );
         }
 
         emit(AvaliacaoCadastrada());
-        add(LoadAvaliacoesEvent()); // Recarrega a lista após o cadastro
+        add(LoadAvaliacoesEvent());
       } catch (e) {
         emit(AvaliacoesError(message: e.toString()));
       }
     });
 
     on<ApplyFiltersEvent>((event, emit) async {
-      emit(AvaliacoesLoading(oldState: state));
       try {
-        final prefs = await SharedPreferences.getInstance();
-        final currentUserId = prefs.getString('userId');
-        if (currentUserId == null) throw Exception("Usuário não logado");
+        emit(AvaliacoesLoading(oldState: state));
 
-        // Chama o novo método do repositório com os filtros
-        final filteredEvaluations = await AvaliacoesRepository.filterEvaluations(
+        // chama o /evaluations/filter com title/status/creatorId
+        final filtered = await AvaliacoesRepository.filter(
           description: event.description,
-          startDate: event.startDate,
-          finalDate: event.finalDate,
           statusId: event.status?.id,
+          creatorId: event.creatorId,
         );
 
-        // Processa os resultados filtrados
-        final processedFutures = filteredEvaluations.map((e) => _processEvaluation(e, currentUserId)).toList();
-        final processedEvaluations = await Future.wait(processedFutures);
+        final prefs = await SharedPreferences.getInstance();
+        final userIdStr = prefs.getString('userId') ?? '';
+        final userId = int.tryParse(userIdStr);
 
-        // Filtra novamente no front-end para separar "Minhas" de "Comunidade"
-        final myEvaluations = processedEvaluations
-            .where((v) => v.evaluation.isCurrentUserAnEvaluator || v.evaluation.user?.id.toString() == currentUserId)
-            .toList();
+        // processa para descobrir relação do usuário
+        final processed = await Future.wait(
+          filtered.map((e) => _processEvaluation(e, userIdStr)),
+        );
 
-        final communityEvaluations = processedEvaluations
-            .where((v) => !myEvaluations.contains(v) && v.evaluation.isPublic)
+        // separa como o “carregamento padrão”:
+        final myEvaluations = processed.where((v) {
+          final isOwner = (v.evaluation.user?.id == userId);
+          final isEvaluator = (v.evaluation.isCurrentUserAnEvaluator == true);
+          return isOwner || isEvaluator;
+        }).toList();
+
+        final myIds = myEvaluations.map((v) => v.evaluation.id).toSet();
+        final communityEvaluations = processed
+            .where((v) =>
+        v.evaluation.isPublic == true && !myIds.contains(v.evaluation.id))
             .toList();
 
         emit(AvaliacoesLoaded(
@@ -157,32 +192,25 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
     });
 
     on<LoadEvaluationDetailsEvent>((event, emit) async {
-      final currentState = state;
-      emit(AvaliacoesLoading(oldState: currentState));
+      final s = state;
+      emit(AvaliacoesLoading(oldState: s));
       try {
         final results = await Future.wait([
-          AvaliacoesRepository.getAvaliacoesById(event.evaluationId),
+          AvaliacoesRepository.getEvaluationById(event.evaluationId),
           AvaliacoesRepository.getObjectivesByEvaluationId(event.evaluationId),
-          AvaliacoesRepository.getDominios(),
+          AvaliacoesRepository.getApplicationTypes(),
           AvaliacoesRepository.getEvaluatorsByIdEvaluation(event.evaluationId),
-          AvaliacoesRepository.getUsuariosAvaliadores(),
+          AvaliacoesRepository.getUsuariosAvaliadores(event.evaluationId),
         ]);
 
-        final evaluation = results[0] as Evaluation;
-        final objectives = results[1] as List<Objective>;
-        final dominios = results[2] as List<ApplicationType>;
-        final selectedEvaluators = results[3] as List<Evaluator>;
-        final availableEvaluators = results[4] as List<User>;
-
-        // CORRIGIDO: Passa as listas do estado anterior para o novo estado
         emit(EvaluationDetailsLoaded(
-          myEvaluations: currentState.myEvaluations,
-          communityEvaluations: currentState.communityEvaluations,
-          evaluation: evaluation,
-          objectives: objectives,
-          dominios: dominios,
-          evaluators: selectedEvaluators,
-          availableEvaluators: availableEvaluators,
+          myEvaluations: s.myEvaluations,
+          communityEvaluations: s.communityEvaluations,
+          evaluation: results[0] as Evaluation,
+          objectives: results[1] as List<Objective>,
+          dominios: results[2] as List<ApplicationType>,
+          evaluators: results[3] as List<Evaluator>,
+          availableEvaluators: results[4] as List<User>,
         ));
       } catch (e) {
         emit(AvaliacoesError(message: e.toString()));
@@ -193,84 +221,100 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
       emit(AvaliacoesLoading(oldState: state));
       try {
         final prefs = await SharedPreferences.getInstance();
-        final userId = prefs.getString('userId');
-        if (userId == null) {
-          emit(AvaliacoesError(message: "Usuário não autenticado."));
+        final userIdStr = prefs.getString('userId');
+        if (userIdStr == null) {
+          emit(AvaliacoesError(message: 'Usuário não autenticado.'));
           return;
         }
 
-        final creator = await AvaliacoesRepository.getUsuarioById(int.parse(userId));
-        final now = DateTime.now().toIso8601String();
+        final creator =
+        await AvaliacoesRepository.getUsuarioById(int.parse(userIdStr));
+        final nowIso = DateTime.now().toIso8601String();
 
-        final evaluationToUpdate = Evaluation(
-          id: event.id,
-          description: event.descricao,
-          link: event.link,
-          startDate: AppConvert.convertDateToIso(event.dataInicio),
-          finalDate: AppConvert.convertDateToIso(event.dataFim),
-          applicationType: event.tipoAplicacao,
-          user: creator,
-          register: now,
-          isPublic: event.isPublic,
-          evaluatorsLimit: event.limit,
+        await AvaliacoesRepository.updateAvaliacao(
+          Evaluation(
+            id: event.id,
+            description: event.descricao,
+            link: event.link,
+            startDate: AppConvert.convertDateToIso(event.dataInicio),
+            finalDate: AppConvert.convertDateToIso(event.dataFim),
+            applicationType: event.tipoAplicacao,
+            user: creator,
+            register: nowIso,
+            isPublic: event.isPublic,
+            evaluatorsLimit: event.limit,
+          ),
         );
-        await AvaliacoesRepository.putAvaliacao(evaluationToUpdate);
 
-        final objetivosAntigos = await AvaliacoesRepository.getObjectivesByEvaluationId(event.id);
-        final avaliadoresAntigos = await AvaliacoesRepository.getEvaluatorsByIdEvaluation(event.id);
+        final antigosObjs =
+        await AvaliacoesRepository.getObjectivesByEvaluationId(event.id);
+        final antigosAvs =
+        await AvaliacoesRepository.getEvaluatorsByIdEvaluation(event.id);
 
-        final descricoesObjetivosAntigos = objetivosAntigos.map((o) => o.description).toSet();
-        final idsAvaliadoresAntigos = avaliadoresAntigos.map((e) => e.user?.id).toSet();
+        final oldObjDesc = antigosObjs.map((o) => o.description).toSet();
+        final newObjDesc = event.objetivos.toSet();
 
-        final descricoesObjetivosNovos = event.objetivos.toSet();
-        final idsAvaliadoresNovos = event.avaliadores.map((u) => u.id).toSet();
+        final oldEvalUsers = antigosAvs.map((e) => e.user?.id).toSet();
+        final newEvalUsers = event.avaliadores.map((u) => u.id).toSet();
 
-        final objetivosParaDeletar = objetivosAntigos.where((obj) => !descricoesObjetivosNovos.contains(obj.description));
-        final descricoesParaAdicionar = descricoesObjetivosNovos.where((desc) => !descricoesObjetivosAntigos.contains(desc));
+        final toDeleteObj =
+        antigosObjs.where((o) => !newObjDesc.contains(o.description));
+        final toAddObj = newObjDesc.where((d) => !oldObjDesc.contains(d));
 
-        final avaliadoresParaDeletar = avaliadoresAntigos.where((ev) => !idsAvaliadoresNovos.contains(ev.user?.id));
-        final usuariosParaAdicionar = event.avaliadores.where((user) => !idsAvaliadoresAntigos.contains(user.id));
+        final toDeleteEval =
+        antigosAvs.where((ev) => !newEvalUsers.contains(ev.user?.id));
+        final toAddUsers =
+        event.avaliadores.where((u) => !oldEvalUsers.contains(u.id));
 
-        final statusNaoIniciada = await AvaliacoesRepository.getStatusById(3);
+        final Status statusNaoIniciada =
+        await AvaliacoesRepository.getStatusById(3);
 
         await Future.wait([
-          ...objetivosParaDeletar.map((obj) => AvaliacoesRepository.deleteObjetivo(obj.id!)),
-          ...avaliadoresParaDeletar.map((ev) => AvaliacoesRepository.deleteEvaluator(ev.id!)),
-          ...descricoesParaAdicionar.map((desc) {
-            final novoObjetivo = Objective(description: desc, evaluation: Evaluation(id: event.id), register: now);
-            return AvaliacoesRepository.createObjetivo(novoObjetivo);
-          }),
-          ...usuariosParaAdicionar.map((user) {
-            final novoAvaliador = Evaluator(user: user, evaluation: Evaluation(id: event.id), register: now, status: statusNaoIniciada);
-            return AvaliacoesRepository.createAvaliador(novoAvaliador);
-          }),
+          ...toDeleteObj.map((o) => AvaliacoesRepository.deleteObjetivo(o.id!)),
+          ...toDeleteEval.map((ev) => AvaliacoesRepository.deleteAvaliador(ev.id!)),
+          ...toAddObj.map((desc) => AvaliacoesRepository.insertObjetivo(
+            Objective(
+              description: desc,
+              evaluation: Evaluation(id: event.id),
+              register: nowIso,
+            ),
+          )),
+          ...toAddUsers.map((u) => AvaliacoesRepository.insertAvaliador(
+            Evaluator(
+              user: u,
+              evaluation: Evaluation(id: event.id),
+              register: nowIso,
+              status: statusNaoIniciada,
+            ),
+          )),
         ]);
 
         emit(AvaliacaoUpdated());
-        add(LoadAvaliacoesEvent()); // Recarrega a lista após a atualização
+        add(LoadAvaliacoesEvent());
       } catch (e) {
         emit(AvaliacoesError(message: e.toString()));
       }
     });
 
     on<DeleteAvaliacaoEvent>((event, emit) async {
-      final currentState = state;
-      emit(AvaliacoesLoading(oldState: currentState));
+      final s = state;
+      emit(AvaliacoesLoading(oldState: s));
       try {
-        final evaluatorsToDelete = await AvaliacoesRepository.getEvaluatorsByIdEvaluation(event.evaluationId);
-        final objectivesToDelete = await AvaliacoesRepository.getObjectivesByEvaluationId(event.evaluationId);
+        final evaluators =
+        await AvaliacoesRepository.getEvaluatorsByIdEvaluation(event.evaluationId);
+        final objectives =
+        await AvaliacoesRepository.getObjectivesByEvaluationId(event.evaluationId);
 
         await Future.wait([
-          ...evaluatorsToDelete.map((e) => AvaliacoesRepository.deleteEvaluator(e.id!)),
-          ...objectivesToDelete.map((o) => AvaliacoesRepository.deleteObjetivo(o.id!)),
+          ...evaluators.map((e) => AvaliacoesRepository.deleteAvaliador(e.id!)),
+          ...objectives.map((o) => AvaliacoesRepository.deleteObjetivo(o.id!)),
         ]);
 
         await AvaliacoesRepository.deleteAvaliacao(event.evaluationId);
 
-        // CORRIGIDO: Passa as listas do estado anterior para o novo estado
         emit(AvaliacaoDeleted(
-          myEvaluations: currentState.myEvaluations,
-          communityEvaluations: currentState.communityEvaluations,
+          myEvaluations: s.myEvaluations,
+          communityEvaluations: s.communityEvaluations,
         ));
 
         add(LoadAvaliacoesEvent());
@@ -281,18 +325,26 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
 
     on<DeleteEvaluatorAndProblems>((event, emit) async {
       try {
-        final objectives = await AvaliacoesRepository.getObjectivesByEvaluationId(event.evaluationId);
+        final objectives =
+        await AvaliacoesRepository.getObjectivesByEvaluationId(event.evaluationId);
 
-        await Future.forEach(objectives, (objective) async {
-          if (objective.id != null) {
-            final problemsToDelete = await AvaliacoesRepository.getProblemsByIdObjetivoAndIdEvaluator(objective.id!, event.evaluatorId);
-            await Future.wait(problemsToDelete.map((p) => AvaliacoesRepository.deleteProblem(p.id!)));
+        await Future.forEach(objectives, (Objective o) async {
+          if (o.id != null) {
+            final problems =
+            await AvaliacoesRepository.getProblemsByIdObjetivoAndIdEvaluator(
+              o.id!,
+              event.evaluatorUserId,
+            );
+            await Future.wait(
+              problems
+                  .where((p) => p.id != null)
+                  .map((p) => AvaliacoesRepository.deleteProblem(p.id!)),
+            );
           }
         });
 
-        await AvaliacoesRepository.deleteEvaluator(event.evaluatorId);
+        await AvaliacoesRepository.deleteAvaliador(event.evaluatorRecordId);
 
-        // Recarrega os detalhes e a lista principal
         add(LoadEvaluationDetailsEvent(event.evaluationId));
         add(LoadAvaliacoesEvent());
       } catch (e) {
@@ -300,11 +352,28 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
       }
     });
 
+    // >>>>> Correção 1: usar 'evaluatorId:' <<<<<
     on<StartEvaluationEvent>((event, emit) async {
       try {
-        await AvaliacoesRepository.updateEvaluatorStatus(event.evaluatorId, 1);
+        await AvaliacoesRepository.startEvaluation(
+          evaluatorId: event.evaluatorUserId,
+          evaluationId: event.evaluationId,
+        );
+        add(LoadEvaluationDetailsEvent(event.evaluationId));
+        add(LoadAvaliacoesEvent());
+      } catch (e) {
+        emit(AvaliacoesError(message: e.toString()));
+      }
+    });
 
-        // Recarrega os detalhes e a lista principal
+    // >>>>> Correção 2: dois posicionais (userId, statusId) <<<<<
+    on<FinalizeEvaluation>((event, emit) async {
+      try {
+        await AvaliacoesRepository.updateEvaluatorStatus(
+          event.evaluatorUserId,
+          event.statusId,
+          evaluationId: event.evaluationId,
+        );
         add(LoadEvaluationDetailsEvent(event.evaluationId));
         add(LoadAvaliacoesEvent());
       } catch (e) {
@@ -313,33 +382,53 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
     });
   }
 
-  Future<EvaluationViewData> _processEvaluation(Evaluation avaliacao, String currentUserId) async {
-    if (avaliacao.id == null) {
-      return EvaluationViewData(evaluation: avaliacao);
-    }
-    final evaluators = await AvaliacoesRepository.getEvaluatorsByIdEvaluation(avaliacao.id!);
-    avaliacao.completedEvaluationsCount = evaluators.where((e) => e.status?.id == 2).length;
-    Evaluator? currentUserAsEvaluator;
+  Future<EvaluationViewData> _processEvaluation(
+      Evaluation e,
+      String currentUserId,
+      ) async {
+    if (e.id == null) return EvaluationViewData(evaluation: e);
+
+    final evaluators = await AvaliacoesRepository.getEvaluatorsByIdEvaluation(e.id!);
+
+    // ▼▼▼ ADICIONE estas 4 linhas ▼▼▼
+    final total = evaluators.length;
+    final completed = evaluators.where((x) => x.status?.id == 2).length; // 2 = Concluída
+    final notStarted = evaluators.where((x) => x.status?.id == 3).length; // 3 = Não iniciada
+    e
+      ..totalEvaluatorsCount = total
+      ..completedEvaluationsCount = completed  // você já tinha essa linha; mantenha!
+      ..notStartedEvaluationsCount = notStarted;
+    // ▲▲▲ ADICIONE estas 4 linhas ▲▲▲
+
+    // (resto do método continua igual)
+    e.completedEvaluationsCount =
+        evaluators.where((x) => x.status?.id == 2).length;
+
+    Evaluator? me;
     try {
-      currentUserAsEvaluator = evaluators.firstWhere((e) => e.user?.id.toString() == currentUserId);
-      avaliacao.isCurrentUserAnEvaluator = true;
-    } catch (e) {
-      avaliacao.isCurrentUserAnEvaluator = false;
+      me = evaluators.firstWhere((x) => x.user?.id.toString() == currentUserId);
+      e.isCurrentUserAnEvaluator = true;
+    } catch (_) {
+      e.isCurrentUserAnEvaluator = false;
     }
-    if (avaliacao.isCurrentUserAnEvaluator) {
-      final objectives = await AvaliacoesRepository.getObjectivesByEvaluationId(avaliacao.id!);
-      int problemCount = 0;
-      await Future.forEach(objectives, (objective) async {
-        if (objective.id != null) {
-          final problems = await AvaliacoesRepository.getProblemsByIdObjetivoAndIdEvaluator(objective.id!, int.parse(currentUserId));
-          problemCount += problems.length;
+
+    if (e.isCurrentUserAnEvaluator) {
+      final objectives = await AvaliacoesRepository.getObjectivesByEvaluationId(e.id!);
+      var myProblems = 0;
+      await Future.forEach(objectives, (Objective o) async {
+        if (o.id != null) {
+          final probs = await AvaliacoesRepository
+              .getProblemsByIdObjetivoAndIdEvaluator(
+            o.id!,
+            int.parse(currentUserId),
+          );
+          myProblems += probs.length;
         }
       });
-      avaliacao.currentUserHasProblems = problemCount > 0;
+      e.currentUserHasProblems = myProblems > 0;
     }
-    return EvaluationViewData(
-      evaluation: avaliacao,
-      currentUserAsEvaluator: currentUserAsEvaluator,
-    );
+
+    return EvaluationViewData(evaluation: e, currentUserAsEvaluator: me);
   }
+
 }

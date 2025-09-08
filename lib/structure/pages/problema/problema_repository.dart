@@ -1,3 +1,5 @@
+// Camada fina de repositório: chama seus services padronizados.
+
 import 'package:flutter_pandyzer/structure/http/models/Evaluation.dart';
 import 'package:flutter_pandyzer/structure/http/models/Evaluator.dart';
 import 'package:flutter_pandyzer/structure/http/models/Heuristic.dart';
@@ -5,58 +7,64 @@ import 'package:flutter_pandyzer/structure/http/models/Objective.dart';
 import 'package:flutter_pandyzer/structure/http/models/Problem.dart';
 import 'package:flutter_pandyzer/structure/http/models/Severity.dart';
 import 'package:flutter_pandyzer/structure/http/models/User.dart';
+
+// Services existentes no projeto
 import 'package:flutter_pandyzer/structure/http/services/avaliacao_service.dart';
 import 'package:flutter_pandyzer/structure/http/services/avaliador_service.dart';
 import 'package:flutter_pandyzer/structure/http/services/heuristica_service.dart';
 import 'package:flutter_pandyzer/structure/http/services/objetivo_service.dart';
 import 'package:flutter_pandyzer/structure/http/services/problema_service.dart';
 import 'package:flutter_pandyzer/structure/http/services/severidade_service.dart';
-import 'package:flutter_pandyzer/structure/http/services/usuario_service.dart';
 
 mixin ProblemaRepository {
+  // ===== Evaluation / Objectives =====
+  static Future<Evaluation> getEvaluationById(int id) =>
+      AvaliacaoService.getById(id);
 
-  static Future<Evaluation> getAvaliacoesById(int id) async {
-    return await AvaliacaoService.getAvaliacaoById(id);
+  static Future<List<Objective>> getObjectives(int evaluationId) =>
+      ObjetivoService.getObjetivoByIdAvaliacao(evaluationId);
+
+  // ===== Heuristics / Severities =====
+  static Future<List<Heuristic>> getHeuristics() =>
+      HeuristicaService.getHeuristicas();
+
+  static Future<List<Severity>> getSeverities() =>
+      SeveridadeService.getSeveridades();
+
+  // ===== Evaluators (para descobrir status do usuário avaliador) =====
+  static Future<List<Evaluator>> getEvaluatorsByEvaluation(int evaluationId) =>
+      AvaliadorService.getByEvaluation(evaluationId);
+
+  // ===== Problems =====
+  static Future<List<Problem>> getProblemsByObjectiveAndUser({
+    required int objectiveId,
+    required int userId,
+  }) =>
+      ProblemaService.getByObjectiveAndUser(
+        objectiveId: objectiveId,
+        userId: userId,
+      );
+
+  static Future<void> upsertProblem(Problem p) async {
+    if (p.id == null) {
+      await ProblemaService.postProblema(p);
+    } else {
+      await ProblemaService.putProblema(p);
+    }
   }
 
-  static Future<List<Objective>> getObjectivesByEvaluationId(int idEvalution) async {
-    return await ObjetivoService.getObjetivoByIdAvaliacao(idEvalution);
-  }
+  static Future<void> deleteProblem(int id) =>
+      ProblemaService.deleteProblema(id);
 
-  static Future<List<Heuristic>> getHeuristics() async {
-    return await HeuristicaService.getHeuristicas();
-  }
-
-  static Future<List<Severity>> getSeverities() async {
-    return await SeveridadeService.getSeveridades();
-  }
-
-  static Future<User> getUsuarioById(int id) async {
-    return await UsuarioService.getUsuarioById(id);
-  }
-
-  static Future<void> createProblema(Problem problema) async {
-    return await ProblemaService.postProblema(problema);
-  }
-
-  static Future<List<Problem>> getProblemsByIdObjetivoAndIdEvaluator(int idObjetivo, int idEvaluator) async {
-    return await ProblemaService.getProblemsByIdObjetivoAndIdEvaluator(idObjetivo, idEvaluator);
-  }
-
-  static Future<void> updateEvaluatorStatus(int usuarioId, int statusId, int evaluationId) async {
-    return await AvaliadorService.updateEvaluatorStatus(usuarioId, statusId, evaluationId);
-  }
-
-  static Future<void> deleteProblem(int id) async {
-    return await ProblemaService.deleteProblema(id);
-  }
-
-  static Future<void> updateProblem(Problem problem) async {
-    return await ProblemaService.putProblema(problem);
-  }
-
-  static Future<List<Evaluator>> getEvaluatorsByIdEvaluation(int idEvaluation) async {
-    return await AvaliadorService.getEvaluatorsByIdEvaluation(idEvaluation);
-  }
-
+  // ===== Finalização (muda status do avaliador) =====
+  static Future<void> finalizeEvaluation({
+    required int evaluatorUserId,
+    required int evaluationId,
+    required int statusId, // ex.: 2 = Concluída
+  }) =>
+      AvaliadorService.updateEvaluatorStatus(
+        evaluatorId: evaluatorUserId,
+        evaluationId: evaluationId,
+        statusId: statusId,
+      );
 }

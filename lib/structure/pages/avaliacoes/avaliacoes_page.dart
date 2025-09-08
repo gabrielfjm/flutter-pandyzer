@@ -20,6 +20,7 @@ import 'package:flutter_pandyzer/structure/pages/avaliacoes/modal/avaliacoes_det
 import 'package:flutter_pandyzer/structure/pages/avaliacoes/tabs/comunidade_avaliacoes_tab.dart';
 import 'package:flutter_pandyzer/structure/pages/avaliacoes/tabs/minhas_avaliacoes_tab.dart';
 import 'package:flutter_pandyzer/structure/pages/problema/problema_page.dart';
+import 'package:flutter_pandyzer/structure/widgets/animated_action_button.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_container.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_data_picker_field.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_dropdown.dart';
@@ -31,6 +32,8 @@ import 'package:flutter_pandyzer/structure/widgets/app_toast.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../http/models/User.dart';
+import '../../widgets/app_confirm_dialog.dart';
 import 'avaliacoes_repository.dart';
 
 class AvaliacoesPage extends StatefulWidget {
@@ -40,16 +43,17 @@ class AvaliacoesPage extends StatefulWidget {
   State<AvaliacoesPage> createState() => _AvaliacoesPageState();
 }
 
-class _AvaliacoesPageState extends State<AvaliacoesPage> with SingleTickerProviderStateMixin {
+class _AvaliacoesPageState extends State<AvaliacoesPage>
+    with SingleTickerProviderStateMixin {
   final AvaliacoesBloc _bloc = AvaliacoesBloc();
   late TabController _tabController;
   String? _currentUserId;
 
   final _descriptionFilterController = TextEditingController();
-  final _startDateFilterController = TextEditingController();
-  final _endDateFilterController = TextEditingController();
   Status? _selectedStatus;
   List<Status> _availableStatuses = [];
+  User? _selectedCreator;
+  List<User> _availableCreators = [];
 
   @override
   void initState() {
@@ -57,6 +61,27 @@ class _AvaliacoesPageState extends State<AvaliacoesPage> with SingleTickerProvid
     _tabController = TabController(length: 2, vsync: this);
     _loadCurrentUserAndData();
     _loadFilterDependencies();
+  }
+
+  Future<void> _loadCreators() async {
+    try {
+      if (_currentUserId == null) return;
+      final userId = int.parse(_currentUserId!);
+      final creators = await AvaliacoesRepository.getCreatorsForUser(userId);
+      if (mounted) {
+        setState(() {
+          _availableCreators = creators;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        showAppToast(
+          context: context,
+          message: "Erro ao carregar criadores.",
+          isError: true,
+        );
+      }
+    }
   }
 
   Future<void> _loadFilterDependencies() async {
@@ -68,7 +93,13 @@ class _AvaliacoesPageState extends State<AvaliacoesPage> with SingleTickerProvid
         });
       }
     } catch (e) {
-      if(mounted) showAppToast(context: context, message: "Erro ao carregar os status para o filtro.", isError: true);
+      if (mounted) {
+        showAppToast(
+          context: context,
+          message: "Erro ao carregar os status para o filtro.",
+          isError: true,
+        );
+      }
     }
   }
 
@@ -80,6 +111,8 @@ class _AvaliacoesPageState extends State<AvaliacoesPage> with SingleTickerProvid
       });
     }
     _bloc.add(LoadAvaliacoesEvent());
+    await _loadCreators();
+
   }
 
   @override
@@ -91,52 +124,44 @@ class _AvaliacoesPageState extends State<AvaliacoesPage> with SingleTickerProvid
 
   void _onChangeState(BuildContext context, AvaliacoesState state) {
     if (state is EvaluationDetailsLoaded) {
-      _showDetailsModal(context, state.evaluation!, state.objectives, state.evaluators);
+      _showDetailsModal(
+        context,
+        state.evaluation!,
+        state.objectives,
+        state.evaluators,
+      );
     }
     if (state is AvaliacaoDeleted) {
       showAppToast(context: context, message: "Avaliação excluída com sucesso!");
     }
     if (state is AvaliacoesError) {
-      showAppToast(context: context, message: state.message ?? "Ocorreu um erro", isError: true);
+      showAppToast(
+        context: context,
+        message: state.message ?? "Ocorreu um erro",
+        isError: true,
+      );
     }
   }
 
-  // --- Funções de Ação Centralizadas ---
+  // --- Ações ---
 
   void _applyFilters() {
-    // Validação de data
-    if (_startDateFilterController.text.isNotEmpty && _endDateFilterController.text.isNotEmpty) {
-      try {
-        final formatter = DateFormat('dd/MM/yyyy');
-        final startDate = formatter.parse(_startDateFilterController.text);
-        final endDate = formatter.parse(_endDateFilterController.text);
-        if (endDate.isBefore(startDate)) {
-          showAppToast(context: context, message: "A data final do filtro não pode ser anterior à data inicial.", isError: true);
-          return;
-        }
-      } catch(e) {
-        showAppToast(context: context, message: "Formato de data inválido.", isError: true);
-        return;
-      }
-    }
-
     _bloc.add(ApplyFiltersEvent(
       description: _descriptionFilterController.text,
-      startDate: _startDateFilterController.text,
-      finalDate: _endDateFilterController.text,
+      creatorId: _selectedCreator?.id, // <- novo
       status: _selectedStatus,
     ));
   }
 
   void _clearFilters() {
     _descriptionFilterController.clear();
-    _startDateFilterController.clear();
-    _endDateFilterController.clear();
     setState(() {
       _selectedStatus = null;
+      _selectedCreator = null;
     });
-    _bloc.add(LoadAvaliacoesEvent()); // Recarrega a lista original
+    _bloc.add(LoadAvaliacoesEvent());
   }
+
 
   void _performAction(EvaluationViewData viewData) {
     final evaluation = viewData.evaluation;
@@ -151,7 +176,6 @@ class _AvaliacoesPageState extends State<AvaliacoesPage> with SingleTickerProvid
         ),
       );
     } else {
-      // A chamada agora passa o objeto viewData completo
       _showStartEvaluationConfirmationDialog(viewData);
     }
   }
@@ -161,7 +185,9 @@ class _AvaliacoesPageState extends State<AvaliacoesPage> with SingleTickerProvid
   }
 
   void _editAvaliacao(int evaluationId) {
-    NavigationManager().goTo(CadastroAvaliacoesPage(bloc: _bloc, evaluationId: evaluationId));
+    NavigationManager().goTo(
+      CadastroAvaliacaoPage(editarAvaliacaoId: evaluationId),
+    );
   }
 
   void _deleteAvaliacao(EvaluationViewData viewData) {
@@ -169,9 +195,14 @@ class _AvaliacoesPageState extends State<AvaliacoesPage> with SingleTickerProvid
     _showDeleteConfirmationDialog(viewData.evaluation);
   }
 
-  // --- Funções de Diálogo ---
+  // --- Diálogos ---
 
-  void _showDetailsModal(BuildContext context, Evaluation evaluation, List<Objective> objectives, List<Evaluator> evaluators) {
+  void _showDetailsModal(
+      BuildContext context,
+      Evaluation evaluation,
+      List<Objective> objectives,
+      List<Evaluator> evaluators,
+      ) {
     showDialog(
       context: context,
       builder: (_) => BlocProvider.value(
@@ -187,71 +218,58 @@ class _AvaliacoesPageState extends State<AvaliacoesPage> with SingleTickerProvid
   }
 
   void _showStartEvaluationConfirmationDialog(EvaluationViewData viewData) {
-    // Agora acessamos os dados através do viewData
     final evaluation = viewData.evaluation;
     final evaluator = viewData.currentUserAsEvaluator;
+    // usamos o ID do USUÁRIO do avaliador (necessário para o endpoint /evaluators/{idUser}/{idEvaluation}/status/{idStatus})
+    final evaluatorUserId = evaluator?.user?.id;
+    if (evaluatorUserId == null || evaluation.id == null) return;
 
-    // A verificação continua válida
-    if (evaluator?.id == null || evaluation.id == null) return;
-
-    showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: const Text('Iniciar Avaliação'),
-          content: const Text('Tem certeza que deseja começar esta avaliação? Após iniciar, o status será alterado para "Em Andamento".'),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancelar'),
-              onPressed: () => Navigator.of(dialogContext).pop(),
+    showAppConfirmDialog(
+      context,
+      AppConfirmDialog(
+        icon: Icons.play_circle_outline,
+        iconBg: AppColors.grey900,
+        title: 'Iniciar avaliação',
+        message:
+        'Você está prestes a iniciar a avaliação "${evaluation.description}".\n'
+            'O status será alterado para "Em Andamento" e você poderá registrar problemas.',
+        confirmText: 'Confirmar e iniciar',
+        confirmColor: AppColors.black,
+        onConfirm: () {
+          _bloc.add(StartEvaluationEvent(
+            evaluatorRecordId: evaluator!.id!,        // evaluator.currentUserAsEvaluator.id
+            evaluatorUserId: evaluator.user!.id!,    // evaluator.currentUserAsEvaluator.user.id
+            evaluationId: evaluation.id!,
+          ));
+          // navega para edição dos problemas do próprio avaliador
+          NavigationManager().goTo(
+            ProblemaPage(
+              evaluationId: evaluation.id!,
+              evaluatorId: evaluatorUserId,
+              mode: ProblemaPageMode.edit,
             ),
-            TextButton(
-              style: TextButton.styleFrom(foregroundColor: AppColors.green),
-              child: const Text('Confirmar e Iniciar'),
-              onPressed: () {
-                _bloc.add(StartEvaluationEvent(
-                  evaluatorId: evaluator!.id!,
-                  evaluationId: evaluation.id!,
-                ));
-                Navigator.of(dialogContext).pop();
-                NavigationManager().goTo(
-                  ProblemaPage(
-                    evaluationId: evaluation.id!,
-                    evaluatorId: evaluator.user!.id!,
-                    mode: ProblemaPageMode.edit,
-                  ),
-                );
-              },
-            ),
-          ],
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
   void _showDeleteConfirmationDialog(Evaluation evaluation) {
-    showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: const Text('Confirmar Exclusão'),
-          content: Text('Tem certeza que deseja excluir a avaliação "${evaluation.description}"? Esta ação não pode ser desfeita.'),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancelar'),
-              onPressed: () => Navigator.of(dialogContext).pop(),
-            ),
-            TextButton(
-              style: TextButton.styleFrom(foregroundColor: AppColors.red),
-              child: const Text('Excluir'),
-              onPressed: () {
-                _bloc.add(DeleteAvaliacaoEvent(evaluation.id!));
-                Navigator.of(dialogContext).pop();
-              },
-            ),
-          ],
-        );
-      },
+    showAppConfirmDialog(
+      context,
+      AppConfirmDialog(
+        icon: Icons.delete_outline,
+        iconBg: AppColors.red300,
+        title: 'Excluir avaliação',
+        message: 'Tem certeza que deseja excluir a avaliação '
+            '"${evaluation.description}"?\nEsta ação não pode ser desfeita.',
+        confirmText: 'Excluir',
+        confirmColor: AppColors.red,
+        danger: true,
+        onConfirm: () {
+          _bloc.add(DeleteAvaliacaoEvent(evaluation.id!));
+        },
+      ),
     );
   }
 
@@ -259,10 +277,8 @@ class _AvaliacoesPageState extends State<AvaliacoesPage> with SingleTickerProvid
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.white,
-      // O BlocProvider cria e fornece a instância do BLoC para todos os widgets filhos (incluindo as abas)
       body: BlocProvider.value(
         value: _bloc,
-        // O BlocListener ouve os estados para ações como mostrar toasts e modais
         child: BlocListener<AvaliacoesBloc, AvaliacoesState>(
           listener: _onChangeState,
           child: Padding(
@@ -279,22 +295,53 @@ class _AvaliacoesPageState extends State<AvaliacoesPage> with SingleTickerProvid
                 children: [
                   _header(),
                   _filters(),
-                  appSizedBox(height: 16),
+
+                  const SizedBox(height: 8),
                   TabBar(
                     controller: _tabController,
-                    labelColor: AppColors.primary,
-                    unselectedLabelColor: AppColors.grey700,
-                    indicatorColor: AppColors.primary,
+                    isScrollable: true,
+                    labelPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    labelColor: AppColors.black,
+                    unselectedLabelColor: AppColors.grey600,
+                    labelStyle: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: .5,
+                    ),
+                    unselectedLabelStyle: const TextStyle(
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: .25,
+                    ),
+                    indicator: const UnderlineTabIndicator(
+                      borderSide:
+                      BorderSide(width: 2, color: AppColors.black),
+                      insets: EdgeInsets.symmetric(horizontal: 24),
+                    ),
+                    overlayColor:
+                    const WidgetStatePropertyAll(Colors.transparent),
                     tabs: const [
-                      Tab(icon: Icon(Icons.person_outline), text: 'MINHAS AVALIAÇÕES'),
-                      Tab(icon: Icon(Icons.groups_outlined), text: 'COMUNIDADE'),
+                      Tab(
+                        child: _CleanTab(
+                          icon: Icons.person_outline,
+                          text: 'MINHAS AVALIAÇÕES',
+                        ),
+                      ),
+                      Tab(
+                        child: _CleanTab(
+                          icon: Icons.groups_outlined,
+                          text: 'COMUNIDADE',
+                        ),
+                      ),
                     ],
                   ),
+                  const SizedBox(height: 4),
+                  Divider(height: 1, color: AppColors.grey300),
+                  const SizedBox(height: 8),
+
                   Expanded(
                     child: TabBarView(
                       controller: _tabController,
                       children: [
-                        // Primeira Aba
                         MinhasAvaliacoesTab(
                           currentUserId: _currentUserId,
                           onPerform: _performAction,
@@ -302,13 +349,13 @@ class _AvaliacoesPageState extends State<AvaliacoesPage> with SingleTickerProvid
                           onEdit: _editAvaliacao,
                           onDelete: _deleteAvaliacao,
                         ),
-                        // Segunda Aba
                         ComunidadeAvaliacoesTab(
                           currentUserId: _currentUserId,
                           onPerform: _performAction,
                           onView: _viewAvaliacao,
                           onEdit: _editAvaliacao,
                           onDelete: _deleteAvaliacao,
+                          onJoin: _joinEvaluation,
                         ),
                       ],
                     ),
@@ -326,11 +373,22 @@ class _AvaliacoesPageState extends State<AvaliacoesPage> with SingleTickerProvid
     return appContainer(
       padding: const EdgeInsets.symmetric(vertical: 16),
       alignment: Alignment.centerLeft,
-      child: appText(
-        text: AppStrings.avaliacoes,
-        fontSize: AppFontSize.fs28,
-        fontWeight: FontWeight.bold,
-        color: AppColors.black,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          appText(
+            text: AppStrings.avaliacoes,
+            fontSize: AppFontSize.fs28,
+            fontWeight: FontWeight.bold,
+            color: AppColors.black,
+          ),
+          AnimatedActionButton(
+            text: "Nova Avaliação",
+            icon: AppIcons.add,
+            onPressed: () =>
+                NavigationManager().goTo(const CadastroAvaliacaoPage()),
+          ),
+        ],
       ),
     );
   }
@@ -344,11 +402,28 @@ class _AvaliacoesPageState extends State<AvaliacoesPage> with SingleTickerProvid
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(flex: 2, child: AppTextField(label: 'Título da Avaliação', controller: _descriptionFilterController, height: 75)),
+            Expanded(
+              flex: 2,
+              child: AppTextField(
+                label: 'Título da Avaliação',
+                controller: _descriptionFilterController,
+                height: 75,
+              ),
+            ),
             appSizedBox(width: AppSpacing.normal),
-            Expanded(flex: 1, child: AppDatePickerField(label: 'Data de Início', controller: _startDateFilterController, height: 75)),
-            appSizedBox(width: AppSpacing.normal),
-            Expanded(flex: 1, child: AppDatePickerField(label: 'Data de Fim', controller: _endDateFilterController, height: 75)),
+            // —— novo: dropdown de Criador (entra no lugar das duas datas)
+            Expanded(
+              flex: 1,
+              child: AppDropdown<User>(
+                label: 'Criador',
+                value: _selectedCreator,
+                items: _availableCreators,
+                hintText: 'Selecione o criador',
+                height: 30,
+                onChanged: (u) => setState(() => _selectedCreator = u),
+                itemLabelBuilder: (u) => u.name ?? '—',
+              ),
+            ),
             appSizedBox(width: AppSpacing.normal),
             Expanded(
               flex: 1,
@@ -368,11 +443,81 @@ class _AvaliacoesPageState extends State<AvaliacoesPage> with SingleTickerProvid
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            AppTextButton(text: "Limpar Filtros", backgroundColor: AppColors.grey600, onPressed: _clearFilters, width: 150),
+            AppTextButton(
+              text: "Limpar Filtros",
+              backgroundColor: AppColors.grey600,
+              onPressed: _clearFilters,
+              width: 150,
+            ),
             appSizedBox(width: AppSpacing.normal),
-            AppTextButton(text: "Aplicar Filtros", icon: AppIcons.search, onPressed: _applyFilters, width: 150),
+            AppTextButton(
+              text: "Aplicar Filtros",
+              icon: AppIcons.search,
+              onPressed: _applyFilters,
+              width: 150,
+            ),
           ],
         ),
+      ],
+    );
+  }
+
+  Future<void> _joinEvaluation(Evaluation evaluation) async {
+    if (_currentUserId == null || evaluation.id == null) return;
+
+    await showAppConfirmDialog(
+      context,
+      AppConfirmDialog(
+        icon: Icons.person_add_alt_1,
+        iconBg: AppColors.grey900,
+        title: 'Ingressar na avaliação',
+        message:
+        'Deseja ingressar na avaliação pública "${evaluation.description}"?\n'
+            'Você passará a constar como avaliador desta avaliação.',
+        confirmText: 'Ingressar',
+        confirmColor: AppColors.black,
+        onConfirm: () async {
+          try {
+            final statusCreate = await AvaliacoesRepository.getStatusById(3); // Não iniciada
+            await AvaliacoesRepository.createAvaliador(
+              Evaluator(
+                user: User(id: int.parse(_currentUserId!)),
+                evaluation: Evaluation(id: evaluation.id),
+                status: statusCreate,
+                register: DateTime.now().toIso8601String(),
+              ),
+            );
+
+            if (!mounted) return;
+            showAppToast(context: context, message: 'Você ingressou na avaliação!');
+            _bloc.add(LoadAvaliacoesEvent());
+          } catch (e) {
+            if (!mounted) return;
+            showAppToast(
+              context: context,
+              message: 'Não foi possível ingressar: $e',
+              isError: true,
+            );
+          }
+        },
+      ),
+    );
+  }
+}
+
+class _CleanTab extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  const _CleanTab({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 18),
+        const SizedBox(width: 8),
+        Text(text),
       ],
     );
   }

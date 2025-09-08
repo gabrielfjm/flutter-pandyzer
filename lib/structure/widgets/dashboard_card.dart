@@ -30,7 +30,6 @@ class _DashboardCardState extends State<DashboardCard> {
 
   @override
   Widget build(BuildContext context) {
-    // ALTERADO: O destaque agora considera o hover OU a seleção vinda do pai
     final bool highlighted = _isHovering || widget.isHighlighted;
 
     return MouseRegion(
@@ -38,10 +37,10 @@ class _DashboardCardState extends State<DashboardCard> {
       onExit: (_) => setState(() => _isHovering = false),
       cursor: SystemMouseCursors.click,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+        duration: const Duration(milliseconds: 160),
         curve: Curves.easeOut,
-        width: 280,
-        transform: Matrix4.identity()..scale(highlighted ? 1.05 : 1.0),
+        // ❌ sem width fixa; deixa o pai controlar (Expanded)
+        transform: Matrix4.identity()..scale(highlighted ? 1.02 : 1.0),
         transformAlignment: FractionalOffset.center,
         decoration: BoxDecoration(
           color: highlighted ? AppColors.grey200 : AppColors.white,
@@ -49,41 +48,46 @@ class _DashboardCardState extends State<DashboardCard> {
           border: Border.all(color: AppColors.grey600),
           boxShadow: [
             BoxShadow(
-              color: highlighted
-                  ? AppColors.grey600.withValues(alpha: 0.7)
-                  : AppColors.grey400.withValues(alpha: 0.5),
-              spreadRadius: highlighted ? 2 : 1,
-              blurRadius: highlighted ? 5 : 3,
+              color: (highlighted ? AppColors.grey600 : AppColors.grey400).withValues(alpha: 0.5),
+              spreadRadius: highlighted ? 1.5 : 1,
+              blurRadius: highlighted ? 6 : 4,
               offset: const Offset(0, 2),
             ),
           ],
         ),
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.medium),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  appText(
-                    text: widget.title,
-                    fontSize: AppFontSize.fs16,
-                    color: AppColors.grey900,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  Icon(widget.icon, color: widget.iconColor, size: 28),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.big),
-              appText(
-                text: widget.value,
-                fontSize: AppFontSize.fs36,
-                fontWeight: FontWeight.bold,
-                color: AppColors.black,
-              ),
-            ],
+          child: ConstrainedBox(
+            // dá um mínimo pra não ficar espremido
+            constraints: const BoxConstraints(minHeight: 110, minWidth: 180),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: appText(
+                        text: widget.title,
+                        fontSize: AppFontSize.fs16,
+                        color: AppColors.grey900,
+                        fontWeight: FontWeight.w600,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(widget.icon, color: widget.iconColor, size: 22),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.big),
+                appText(
+                  text: widget.value,
+                  fontSize: AppFontSize.fs32,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.black,
+                ),
+              ],
+            ),
           ),
         ),
       ),

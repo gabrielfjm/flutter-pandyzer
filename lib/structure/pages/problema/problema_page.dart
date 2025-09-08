@@ -46,6 +46,7 @@ class ProblemForm {
 
 class ProblemaPage extends StatefulWidget {
   final int evaluationId;
+  /// id do USUÁRIO avaliador
   final int evaluatorId;
   final ProblemaPageMode mode;
 
@@ -83,9 +84,10 @@ class _ProblemaPageState extends State<ProblemaPage>
     super.initState();
     _bloc = ProblemaBloc();
     _bloc.add(LoadProblemaPageData(
-        evaluationId: widget.evaluationId, evaluatorId: widget.evaluatorId));
+      evaluationId: widget.evaluationId,
+      evaluatorUserId: widget.evaluatorId, // id do USUÁRIO avaliador
+    ));
 
-    // Inicia a conversa do chat apenas uma vez.
     if (_chatMessages.isEmpty) {
       _chatMessages.add(ChatMessage(
         text: 'Olá! Sou seu assistente de usabilidade. Como posso ajudar?',
@@ -123,9 +125,17 @@ class _ProblemaPageState extends State<ProblemaPage>
   }
 
   void _onChangeState(BuildContext context, ProblemaState state) {
-    if (state is ProblemaLoaded) {
-      final bool shouldShowFinalizarTab = !_isReadOnly && state.currentUserStatusId == 1;
-      final tabCount = state.objectives.length + (shouldShowFinalizarTab ? 1 : 0);
+    if (state is ProblemaLoaded || state is ProblemaSaveSuccess) {
+      final eval = state.evaluation!;
+      final objs = state.objectives;
+      final heur = state.heuristics ?? [];
+      final sevs = state.severities ?? [];
+      final initProblems = state.initialProblems ?? [];
+      final currentStatus = state.currentUserStatusId;
+
+      final bool shouldShowFinalizarTab =
+          !_isReadOnly && currentStatus == 1; // 1 = Em andamento
+      final tabCount = objs.length + (shouldShowFinalizarTab ? 1 : 0);
 
       if (_tabController?.length != tabCount) {
         _tabController?.removeListener(_handleTabSelection);
@@ -134,7 +144,7 @@ class _ProblemaPageState extends State<ProblemaPage>
       }
 
       _reportedProblemForms.clear();
-      for (var problem in state.initialProblems) {
+      for (var problem in initProblems) {
         final objectiveId = problem.objective?.id;
         if (objectiveId != null) {
           _reportedProblemForms
@@ -144,15 +154,14 @@ class _ProblemaPageState extends State<ProblemaPage>
       }
 
       setState(() {
-        _heuristics = state.heuristics;
-        _severities = state.severities;
-        _initialProblems = state.initialProblems;
+        _heuristics = heur;
+        _severities = sevs;
+        _initialProblems = initProblems;
       });
     }
 
     if (state is ProblemaSaveSuccess) {
-      showAppToast(
-          context: context, message: 'Operação realizada com sucesso!');
+      showAppToast(context: context, message: 'Operação realizada com sucesso!');
     }
 
     if (state is ProblemaFinalizeSuccess) {
@@ -176,9 +185,10 @@ class _ProblemaPageState extends State<ProblemaPage>
 
   void _handleFinalize() {
     _bloc.add(FinalizeEvaluation(
-        evaluatorId: widget.evaluatorId,
-        statusId: 2,
-        evaluationId: widget.evaluationId));
+      evaluatorUserId: widget.evaluatorId, // id do USUÁRIO
+      statusId: 2,                         // 2 = Concluída
+      evaluationId: widget.evaluationId,
+    ));
   }
 
   void _handleCancel() {
@@ -201,7 +211,8 @@ class _ProblemaPageState extends State<ProblemaPage>
     final initialIds = _initialProblems.map((p) => p.id).toSet();
     final currentIds = currentProblems.map((p) => p.id).toSet();
 
-    final List<int> idsToDelete = initialIds.difference(currentIds)
+    final List<int> idsToDelete = initialIds
+        .difference(currentIds)
         .where((id) => id != null)
         .cast<int>()
         .toList();
@@ -210,7 +221,7 @@ class _ProblemaPageState extends State<ProblemaPage>
       problemsToUpsert: currentProblems,
       problemIdsToDelete: idsToDelete,
       evaluationId: widget.evaluationId,
-      evaluatorId: widget.evaluatorId,
+      evaluatorUserId: widget.evaluatorId, // id do USUÁRIO
     ));
   }
 
@@ -247,11 +258,10 @@ class _ProblemaPageState extends State<ProblemaPage>
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const Text("Finalizar Avaliação",
-              style: TextStyle(
-                  fontSize: AppFontSize.fs24, fontWeight: FontWeight.bold)),
+              style:
+              TextStyle(fontSize: AppFontSize.fs24, fontWeight: FontWeight.bold)),
           const SizedBox(height: AppSpacing.normal),
-          Text(
-              "Ao finalizar, você não poderá mais editar os problemas reportados.",
+          Text("Ao finalizar, você não poderá mais editar os problemas reportados.",
               style: TextStyle(color: AppColors.grey700)),
           const SizedBox(height: AppSpacing.big),
           AppTextButton(
@@ -288,9 +298,7 @@ class _ProblemaPageState extends State<ProblemaPage>
 
             return Row(
               children: [
-                Expanded(
-                  child: pageBody,
-                ),
+                Expanded(child: pageBody),
                 AnimatedSize(
                   duration: const Duration(milliseconds: 300),
                   curve: Curves.easeInOut,
@@ -347,8 +355,10 @@ class _ProblemaPageState extends State<ProblemaPage>
       return const Center(child: AppLoading());
     }
 
-    final bool showFinalizarTab = !_isReadOnly && state.currentUserStatusId == 1;
-    bool isFinalizarTabActive = showFinalizarTab && _currentTabIndex == objectives.length;
+    final bool showFinalizarTab =
+        !_isReadOnly && state.currentUserStatusId == 1; // 1 = Em andamento
+    final bool isFinalizarTabActive =
+        showFinalizarTab && _currentTabIndex == objectives.length;
 
     final pageContent = Center(
       child: Container(
@@ -379,8 +389,9 @@ class _ProblemaPageState extends State<ProblemaPage>
                     controller: _tabController,
                     isScrollable: true,
                     tabs: [
-                      ...objectives.map((obj) =>
-                          Tab(text: obj.description ?? 'Objetivo')),
+                      ...objectives.map(
+                            (obj) => Tab(text: obj.description ?? 'Objetivo'),
+                      ),
                       if (showFinalizarTab) const Tab(text: 'Finalizar'),
                     ],
                   ),
@@ -398,15 +409,14 @@ class _ProblemaPageState extends State<ProblemaPage>
                   return _ObjectiveTabView(
                     key: ValueKey(objectiveId),
                     objectiveId: objectiveId,
-                    problemForms: _reportedProblemForms.putIfAbsent(
-                        objectiveId, () => []),
+                    problemForms:
+                    _reportedProblemForms.putIfAbsent(objectiveId, () => []),
                     heuristics: _heuristics,
                     severities: _severities,
                     isReadOnly: _isReadOnly,
-                    onAddProblem: () => setState(() =>
-                        _reportedProblemForms
-                            .putIfAbsent(objectiveId, () => [])
-                            .add(ProblemForm(Problem()))),
+                    onAddProblem: () => setState(() => _reportedProblemForms
+                        .putIfAbsent(objectiveId, () => [])
+                        .add(ProblemForm(Problem()))),
                     onRemoveProblem: (form) => setState(() {
                       form.dispose();
                       _reportedProblemForms[objectiveId]?.remove(form);
@@ -482,11 +492,17 @@ class __ObjectiveTabViewState extends State<_ObjectiveTabView>
     super.dispose();
   }
 
+  // Converte a imagem para base64 e salva no problema
   Future<void> _pickImage(ProblemForm form) async {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
     if (image != null && mounted) {
-      setState(() => form.pickedFile = image);
+      final bytes = await image.readAsBytes();
+      final String b64 = base64Encode(bytes);
+      setState(() {
+        form.pickedFile = image;
+        form.problem.imageBase64 = b64;
+      });
     }
   }
 
@@ -499,13 +515,11 @@ class __ObjectiveTabViewState extends State<_ObjectiveTabView>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.check_circle_outline,
-                size: 60, color: AppColors.green300),
+            Icon(Icons.check_circle_outline, size: 60, color: AppColors.green300),
             const SizedBox(height: AppSpacing.medium),
             Text(
               "Nenhum problema identificado para este objetivo",
-              style: TextStyle(
-                  fontSize: AppFontSize.fs18, color: AppColors.grey700),
+              style: TextStyle(fontSize: AppFontSize.fs18, color: AppColors.grey700),
             ),
             const SizedBox(height: AppSpacing.big),
             if (!widget.isReadOnly)
@@ -547,15 +561,21 @@ class __ObjectiveTabViewState extends State<_ObjectiveTabView>
         children: [
           IconButton(
               icon: const Icon(Icons.arrow_back_ios),
-              onPressed: currentPage == 0 ? null : () => _pageController.previousPage(
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.ease)),
+              onPressed: currentPage == 0
+                  ? null
+                  : () => _pageController.previousPage(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.ease,
+              )),
           Text("Problema ${currentPage + 1} de ${widget.problemForms.length}"),
           IconButton(
               icon: const Icon(Icons.arrow_forward_ios),
-              onPressed: currentPage >= widget.problemForms.length - 1 ? null : () => _pageController.nextPage(
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.ease)),
+              onPressed: currentPage >= widget.problemForms.length - 1
+                  ? null
+                  : () => _pageController.nextPage(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.ease,
+              )),
           const Spacer(),
           if (!widget.isReadOnly)
             AppTextButton(
@@ -563,9 +583,11 @@ class __ObjectiveTabViewState extends State<_ObjectiveTabView>
                 widget.onAddProblem();
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   if (_pageController.hasClients) {
-                    _pageController.animateToPage(widget.problemForms.length,
-                        duration: const Duration(milliseconds: 400),
-                        curve: Curves.ease);
+                    _pageController.animateToPage(
+                      widget.problemForms.length,
+                      duration: const Duration(milliseconds: 400),
+                      curve: Curves.ease,
+                    );
                   }
                 });
               },
@@ -587,8 +609,9 @@ class __ObjectiveTabViewState extends State<_ObjectiveTabView>
         margin: const EdgeInsets.symmetric(vertical: AppSpacing.normal),
         elevation: 0,
         shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(color: AppColors.grey300)),
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: AppColors.grey300),
+        ),
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.medium),
           child: Column(
@@ -599,13 +622,12 @@ class __ObjectiveTabViewState extends State<_ObjectiveTabView>
                 children: [
                   Text("Reportar Problema $problemNumber",
                       style: const TextStyle(
-                          fontSize: AppFontSize.fs18,
-                          fontWeight: FontWeight.bold)),
+                          fontSize: AppFontSize.fs18, fontWeight: FontWeight.bold)),
                   if (!widget.isReadOnly)
                     IconButton(
-                        icon: const Icon(Icons.delete_outline,
-                            color: AppColors.red),
-                        onPressed: () => widget.onRemoveProblem(form)),
+                      icon: const Icon(Icons.delete_outline, color: AppColors.red),
+                      onPressed: () => widget.onRemoveProblem(form),
+                    ),
                 ],
               ),
               const Divider(),
@@ -614,37 +636,37 @@ class __ObjectiveTabViewState extends State<_ObjectiveTabView>
                 value: form.problem.heuristic,
                 items: widget.heuristics,
                 itemLabelBuilder: (h) => h.description ?? '',
-                onChanged: widget.isReadOnly
-                    ? null
-                    : (h) => setState(() => form.problem.heuristic = h),
+                onChanged:
+                widget.isReadOnly ? null : (h) => setState(() => form.problem.heuristic = h),
                 enabled: !widget.isReadOnly,
               ),
               const SizedBox(height: AppSpacing.medium),
               AppTextField(
-                  label: 'Descrição do Problema',
-                  controller: form.descriptionController,
-                  enabled: !widget.isReadOnly),
+                label: 'Descrição do Problema',
+                controller: form.descriptionController,
+                enabled: !widget.isReadOnly,
+              ),
               const SizedBox(height: AppSpacing.medium),
               AppTextField(
-                  label: 'Recomendação de Melhoria',
-                  controller: form.recommendationController,
-                  enabled: !widget.isReadOnly),
+                label: 'Recomendação de Melhoria',
+                controller: form.recommendationController,
+                enabled: !widget.isReadOnly,
+              ),
               const SizedBox(height: AppSpacing.medium),
               AppDropdown<Severity>(
                 label: 'Severidade do Problema',
                 value: form.problem.severity,
                 items: widget.severities,
                 itemLabelBuilder: (s) => s.description ?? '',
-                onChanged: widget.isReadOnly
-                    ? null
-                    : (s) => setState(() => form.problem.severity = s),
+                onChanged:
+                widget.isReadOnly ? null : (s) => setState(() => form.problem.severity = s),
                 enabled: !widget.isReadOnly,
               ),
               const Divider(height: AppSpacing.big),
-              const Text('Evidência',
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: AppFontSize.fs15)),
+              const Text(
+                'Evidência',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppFontSize.fs15),
+              ),
               const SizedBox(height: AppSpacing.small),
               Row(
                 children: [
@@ -656,27 +678,32 @@ class __ObjectiveTabViewState extends State<_ObjectiveTabView>
                     ),
                   const SizedBox(width: AppSpacing.normal),
                   Expanded(
-                      child: Text(form.pickedFile?.name ?? 'Nenhum arquivo.',
-                          style: TextStyle(
-                              color: AppColors.grey700,
-                              fontStyle: FontStyle.italic),
-                          overflow: TextOverflow.ellipsis)),
+                    child: Text(
+                      form.pickedFile?.name ?? 'Nenhum arquivo.',
+                      style: TextStyle(color: AppColors.grey700, fontStyle: FontStyle.italic),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                   if (form.pickedFile != null && !widget.isReadOnly)
                     IconButton(
-                        tooltip: "Remover imagem",
-                        icon: const Icon(Icons.clear, size: 18),
-                        onPressed: () =>
-                            setState(() => form.pickedFile = null)),
+                      tooltip: "Remover imagem",
+                      icon: const Icon(Icons.clear, size: 18),
+                      onPressed: () => setState(() {
+                        form.pickedFile = null;
+                        form.problem.imageBase64 = null;
+                      }),
+                    ),
                 ],
               ),
               if (form.problem.imageBase64 != null && form.pickedFile == null)
                 Padding(
                   padding: const EdgeInsets.only(top: AppSpacing.normal),
                   child: Image.memory(
-                      base64Decode(form.problem.imageBase64!),
-                      height: 100,
-                      width: 100,
-                      fit: BoxFit.cover),
+                    base64Decode(form.problem.imageBase64!),
+                    height: 100,
+                    width: 100,
+                    fit: BoxFit.cover,
+                  ),
                 ),
               if (form.pickedFile != null)
                 Padding(
@@ -685,13 +712,18 @@ class __ObjectiveTabViewState extends State<_ObjectiveTabView>
                     future: form.pickedFile!.readAsBytes(),
                     builder: (context, snapshot) {
                       if (snapshot.hasData) {
-                        return Image.memory(snapshot.data!,
-                            height: 100, width: 100, fit: BoxFit.cover);
-                      }
-                      return const SizedBox(
+                        return Image.memory(
+                          snapshot.data!,
                           height: 100,
                           width: 100,
-                          child: Center(child: CircularProgressIndicator()));
+                          fit: BoxFit.cover,
+                        );
+                      }
+                      return const SizedBox(
+                        height: 100,
+                        width: 100,
+                        child: Center(child: CircularProgressIndicator()),
+                      );
                     },
                   ),
                 ),

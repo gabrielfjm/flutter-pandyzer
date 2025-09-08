@@ -17,6 +17,8 @@ import 'package:flutter_pandyzer/structure/pages/problema/problema_page.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_text.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../widgets/app_confirm_dialog.dart';
+
 class AvaliacoesDetalhesModal extends StatefulWidget {
   final AvaliacoesBloc bloc;
   final Evaluation evaluation;
@@ -71,7 +73,8 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
         for (final objective in widget.objectives) {
           final objectiveId = objective.id;
           if (objectiveId != null) {
-            final problems = await AvaliacoesRepository.getProblemsByIdObjetivoAndIdEvaluator(
+            final problems = await AvaliacoesRepository
+                .getProblemsByIdObjetivoAndIdEvaluator(
               objectiveId,
               evaluatorUserId,
             );
@@ -90,75 +93,148 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
     }
   }
 
+  // ----------------- Helpers de Status / Badges -----------------
+
+  _StatusInfo _statusGeral(Evaluation e) {
+    DateTime? parse(String? iso) {
+      if (iso == null) return null;
+      try {
+        return DateTime.parse(iso);
+      } catch (_) {
+        return null;
+      }
+    }
+
+    final now = DateTime.now();
+    final start = parse(e.startDate);
+    final end = parse(e.finalDate);
+
+    if (start != null && now.isBefore(start)) {
+      return _StatusInfo('Agendada', AppColors.grey600);
+    }
+    if (start != null && end != null && now.isAfter(start) && now.isBefore(end)) {
+      return _StatusInfo('Em andamento', AppColors.primary);
+    }
+    if (end != null && now.isAfter(end)) {
+      return _StatusInfo('Encerrada', AppColors.red300);
+    }
+    return _StatusInfo('Em andamento', AppColors.primary);
+  }
+
+  Widget _chip(String text, {Color? color, IconData? icon}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: (color ?? Colors.white24).withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(99),
+        border: Border.all(color: color ?? Colors.white24, width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 14, color: AppColors.white),
+            const SizedBox(width: 6),
+          ],
+          Text(
+            text,
+            style: const TextStyle(
+              color: AppColors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ----------------- Diálogos -----------------
+
   void _showStartEvaluationConfirmationDialog(Evaluator evaluator) {
+    final evaluatorUserId = evaluator.user?.id;
+    if (evaluatorUserId == null || widget.evaluation.id == null) return;
+
     showDialog(
       context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: const Text('Iniciar Avaliação'),
-          content: const Text('Tem certeza que deseja começar esta avaliação? Após iniciar, o status será alterado para "Em Andamento".'),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancelar'),
-              onPressed: () => Navigator.of(dialogContext).pop(),
-            ),
-            TextButton(
-              style: TextButton.styleFrom(foregroundColor: AppColors.green300),
-              child: const Text('Confirmar e Iniciar'),
-              onPressed: () {
-                widget.bloc.add(StartEvaluationEvent(
-                  evaluatorId: evaluator.id!,
-                  evaluationId: widget.evaluation.id!,
-                ));
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('Iniciar Avaliação'),
+        content: const Text(
+          'Tem certeza que deseja começar esta avaliação? '
+              'Após iniciar, o status será alterado para "Em Andamento".',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: AppColors.green300),
+            onPressed: () {
+              // AGORA envia o ID DO USUÁRIO DO AVALIADOR
+              widget.bloc.add(StartEvaluationEvent(
+                evaluatorRecordId: evaluator.id!,         // registro Evaluator
+                evaluatorUserId: evaluator.user!.id!,     // usuário do avaliador
+                evaluationId: widget.evaluation.id!,
+              ));
 
-                Navigator.of(dialogContext).pop();
-                Navigator.of(context).pop();
-
-                NavigationManager().goTo(
-                  ProblemaPage(
-                    evaluationId: widget.evaluation.id!,
-                    evaluatorId: evaluator.user!.id!,
-                    mode: ProblemaPageMode.edit,
-                  ),
-                );
-              },
-            ),
-          ],
-        );
-      },
+              _closeDialogsAndGoToProblems(evaluatorUserId);
+            },
+            child: const Text('Confirmar e Iniciar'),
+          ),
+        ],
+      ),
     );
+  }
+
+  void _closeDialogsAndGoToProblems(int evaluatorUserId) {
+    final nav = Navigator.of(context, rootNavigator: true);
+    if (nav.canPop()) nav.pop(); // fecha confirmação
+    if (nav.canPop()) nav.pop(); // fecha modal
+
+    NavigationManager().goTo(
+      ProblemaPage(
+        evaluationId: widget.evaluation.id!,
+        evaluatorId: evaluatorUserId,
+        mode: ProblemaPageMode.edit,
+      ),
+    );
+
+    try {
+      widget.bloc.add(LoadAvaliacoesEvent());
+    } catch (_) {}
   }
 
   void _showDeleteEvaluatorConfirmationDialog(Evaluator evaluator) {
-    showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: const Text('Confirmar Exclusão'),
-          content: Text('Tem certeza que deseja remover ${evaluator.user?.name} desta avaliação? Todos os problemas reportados por ele serão perdidos.'),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancelar'),
-              onPressed: () => Navigator.of(dialogContext).pop(),
+    showAppConfirmDialog(
+      context,
+      AppConfirmDialog(
+        icon: Icons.delete_outline,
+        iconBg: AppColors.red300,
+        title: 'Remover avaliador',
+        message:
+        'Tem certeza que deseja remover ${evaluator.user?.name} desta avaliação?\n'
+            'Todos os problemas reportados por ele serão perdidos.',
+        confirmText: 'Remover',
+        confirmColor: AppColors.red,
+        danger: true,
+        onConfirm: () {
+          widget.bloc.add(
+            DeleteEvaluatorAndProblems(
+              evaluatorRecordId: evaluator.id!,      // ID do registro "Evaluator"
+              evaluatorUserId: evaluator.user!.id!,  // ID do usuário do avaliador
+              evaluationId: widget.evaluation.id!,  // ID da avaliação
             ),
-            TextButton(
-              style: TextButton.styleFrom(foregroundColor: AppColors.red),
-              child: const Text('Excluir'),
-              onPressed: () {
-                widget.bloc.add(DeleteEvaluatorAndProblems(
-                  evaluatorId: evaluator.id!,
-                  evaluationId: widget.evaluation.id!,
-                ));
-                Navigator.of(dialogContext).pop();
-              },
-            ),
-          ],
-        );
-      },
+          );
+          Navigator.of(context).pop();
+        },
+      ),
     );
   }
 
-  Future<void> _handleReportGeneration(Future<void> Function() reportFunction) async {
+
+  Future<void> _handleReportGeneration(
+      Future<void> Function() reportFunction) async {
     if (_isGeneratingReport) return;
     setState(() => _isGeneratingReport = true);
     try {
@@ -166,54 +242,297 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Erro ao gerar o relatório: $e"), backgroundColor: AppColors.red),
+          SnackBar(
+            content: Text("Erro ao gerar o relatório: $e"),
+            backgroundColor: AppColors.red,
+          ),
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _isGeneratingReport = false);
-      }
+      if (mounted) setState(() => _isGeneratingReport = false);
     }
   }
 
+  // ----------------- UI -----------------
+
   @override
   Widget build(BuildContext context) {
+    final status = _statusGeral(widget.evaluation);
+    final start =
+    AppConvert.convertIsoDateToFormattedDate(widget.evaluation.startDate);
+    final end =
+    AppConvert.convertIsoDateToFormattedDate(widget.evaluation.finalDate);
+    final completedCount =
+        widget.evaluators.where((e) => e.status?.id == 2).length;
+    final canGenerateConsolidated = completedCount >= 1;
+
     return AlertDialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15.0),
-      ),
-      titlePadding: const EdgeInsets.all(0),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      backgroundColor: AppColors.white,
+      titlePadding: EdgeInsets.zero,
       contentPadding: const EdgeInsets.all(AppSpacing.big),
-      title: _buildHeader(context),
+      title: Container(
+        padding: const EdgeInsets.all(AppSpacing.big),
+        decoration: const BoxDecoration(
+          color: AppColors.black,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(16),
+            topRight: Radius.circular(16),
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  appText(
+                    text:
+                    widget.evaluation.description ?? 'Detalhes da Avaliação',
+                    color: AppColors.white,
+                    fontSize: AppFontSize.fs20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _chip(status.label,
+                          color: status.color, icon: AppIcons.info),
+                      _chip('Início $start', icon: AppIcons.calendar),
+                      _chip('Entrega $end', icon: AppIcons.calendar),
+                      if (widget.evaluation.isPublic)
+                        _chip('Pública', icon: AppIcons.public)
+                      else
+                        _chip('Privada', icon: Icons.lock_outline),
+                      if (widget.evaluation.isPublic &&
+                          (widget.evaluation.evaluatorsLimit ?? 0) > 0)
+                        _chip('Limite ${widget.evaluation.evaluatorsLimit}',
+                            icon: AppIcons.users),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            if (canGenerateConsolidated)
+              TextButton.icon(
+                style: TextButton.styleFrom(foregroundColor: AppColors.white),
+                onPressed: _isGeneratingReport
+                    ? null
+                    : () {
+                  final completedEvaluators = widget.evaluators
+                      .where((e) => e.status?.id == 2)
+                      .toList();
+                  final problemsOfCompleted = Map.fromEntries(
+                    _problemsByEvaluator.entries.where(
+                          (entry) => completedEvaluators
+                          .any((e) => e.user?.id == entry.key),
+                    ),
+                  );
+                  if (problemsOfCompleted.isNotEmpty) {
+                    _handleReportGeneration(
+                          () => ReportGeneratorService
+                          .generateConsolidatedReport(
+                        context: context,
+                        evaluation: widget.evaluation,
+                        evaluators: completedEvaluators,
+                        problemsByEvaluator: problemsOfCompleted,
+                        objectives: widget.objectives,
+                      ),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context)
+                        .showSnackBar(const SnackBar(
+                      content: Text(
+                          "Nenhum problema encontrado para gerar o relatório consolidado."),
+                    ));
+                  }
+                },
+                icon: const Icon(Icons.picture_as_pdf, size: 18),
+                label: const Text('Relatório Geral'),
+              ),
+            IconButton(
+              icon: const Icon(Icons.close, color: AppColors.white),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ],
+        ),
+      ),
       content: SizedBox(
-        width: MediaQuery.of(context).size.width * 0.6,
-        height: MediaQuery.of(context).size.height * 0.7,
+        width: MediaQuery.of(context).size.width * 0.72,
+        height: MediaQuery.of(context).size.height * 0.75,
         child: Stack(
           children: [
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // ESQUERDA
                 Expanded(
                   flex: 3,
-                  child: _buildLeftColumn(),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        _SectionCard(
+                          title: 'Detalhes Gerais',
+                          child: Column(
+                            children: [
+                              _DetailRow(
+                                  label: 'Link da Interface',
+                                  value: widget.evaluation.link ?? '-'),
+                              _DetailRow(label: 'Data de Início', value: start),
+                              _DetailRow(label: 'Data de Entrega', value: end),
+                              _DetailRow(
+                                  label: 'Domínio',
+                                  value: widget.evaluation.applicationType
+                                      ?.description ??
+                                      '-'),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.big),
+                        _SectionCard(
+                          title: 'Objetivos',
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (widget.objectives.isEmpty)
+                                const Text('Nenhum objetivo cadastrado.'),
+                              if (widget.objectives.isNotEmpty)
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: widget.objectives.map((o) {
+                                    return _ObjectiveChip(
+                                        text: o.description ?? '-');
+                                  }).toList(),
+                                ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.big),
+                        _SectionCard(
+                          title: 'Criada por',
+                          child: ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: const Icon(AppIcons.person,
+                                color: AppColors.black),
+                            title: Text(
+                                widget.evaluation.user?.name ?? 'Não identificado'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                const VerticalDivider(width: AppSpacing.big * 2),
+                const SizedBox(width: AppSpacing.big * 2),
+                // DIREITA
                 Expanded(
                   flex: 2,
-                  child: _buildRightColumn(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      appText(text: 'Avaliações', fontWeight: FontWeight.bold),
+                      const SizedBox(height: AppSpacing.normal),
+                      Expanded(
+                        child: _isLoadingProblems
+                            ? const Center(child: CircularProgressIndicator())
+                            : (widget.evaluators.isEmpty)
+                            ? const Center(
+                            child: Text('Nenhum avaliador atribuído.'))
+                            : ListView.builder(
+                          itemCount: widget.evaluators.length,
+                          itemBuilder: (context, index) {
+                            final evaluator =
+                            widget.evaluators[index];
+                            final problems =
+                                _problemsByEvaluator[
+                                evaluator.user?.id] ??
+                                    [];
+                            final isOwner = _currentUserId != null &&
+                                _currentUserId ==
+                                    widget.evaluation.user?.id
+                                        .toString();
+                            final isThisEvaluator =
+                                _currentUserId != null &&
+                                    _currentUserId ==
+                                        evaluator.user?.id
+                                            .toString();
+
+                            return _EvaluatorTile(
+                              evaluator: evaluator,
+                              problems: problems,
+                              isOwner: isOwner,
+                              isThisEvaluator: isThisEvaluator,
+                              onStart: () =>
+                                  _showStartEvaluationConfirmationDialog(
+                                      evaluator),
+                              onViewProblems: () {
+                                Navigator.of(context).pop();
+                                NavigationManager().goTo(
+                                  ProblemaPage(
+                                    evaluationId:
+                                    widget.evaluation.id!,
+                                    evaluatorId:
+                                    evaluator.user!.id!,
+                                    mode: ProblemaPageMode.view,
+                                  ),
+                                );
+                              },
+                              onEditMine: () {
+                                Navigator.of(context).pop();
+                                NavigationManager().goTo(
+                                  ProblemaPage(
+                                    evaluationId:
+                                    widget.evaluation.id!,
+                                    evaluatorId:
+                                    evaluator.user!.id!,
+                                    mode: ProblemaPageMode.edit,
+                                  ),
+                                );
+                              },
+                              onRemove: () =>
+                                  _showDeleteEvaluatorConfirmationDialog(
+                                      evaluator),
+                              onDownloadReport: problems.isEmpty
+                                  ? null
+                                  : () => _handleReportGeneration(
+                                    () => ReportGeneratorService
+                                    .generateEvaluatorReport(
+                                  context: context,
+                                  evaluator: evaluator,
+                                  evaluation:
+                                  widget.evaluation,
+                                  problems: problems,
+                                  objectives:
+                                  widget.objectives,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
             if (_isGeneratingReport)
               Container(
-                color: Colors.black.withValues(alpha: 0.5),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 child: const Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       CircularProgressIndicator(color: Colors.white),
                       SizedBox(height: 16),
-                      Text('Gerando relatório, por favor aguarde...', style: TextStyle(color: Colors.white)),
+                      Text(
+                        'Gerando relatório, por favor aguarde...',
+                        style: TextStyle(color: Colors.white),
+                      ),
                     ],
                   ),
                 ),
@@ -223,266 +542,269 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
       ),
     );
   }
+}
 
-  Widget _buildHeader(BuildContext context) {
-    final completedCount = widget.evaluators.where((e) => e.status?.id == 2).length;
-    final canGenerateConsolidated = completedCount >= 1;
+// ----------------- Widgets de apoio -----------------
 
+class _SectionCard extends StatelessWidget {
+  final String title;
+  final Widget child;
+  const _SectionCard({required this.title, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.big),
-      decoration: const BoxDecoration(
-        color: AppColors.black,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(15.0),
-          topRight: Radius.circular(15.0),
-        ),
+      decoration: BoxDecoration(
+        color: AppColors.grey100,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.grey300),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: appText(
-              text: widget.evaluation.description ?? 'Detalhes da Avaliação',
-              color: AppColors.white,
-              fontSize: AppFontSize.fs20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          if (canGenerateConsolidated)
-            TextButton.icon(
-              style: TextButton.styleFrom(foregroundColor: AppColors.white),
-              onPressed: _isGeneratingReport ? null : () {
-                final completedEvaluators = widget.evaluators.where((e) => e.status?.id == 2).toList();
-                final problemsOfCompleted = Map.fromEntries(
-                    _problemsByEvaluator.entries.where((entry) => completedEvaluators.any((e) => e.user?.id == entry.key))
-                );
-
-                if (problemsOfCompleted.isNotEmpty) {
-                  _handleReportGeneration(() => ReportGeneratorService.generateConsolidatedReport(
-                    context: context,
-                    evaluation: widget.evaluation,
-                    evaluators: completedEvaluators,
-                    problemsByEvaluator: problemsOfCompleted,
-                    objectives: widget.objectives,
-                  ));
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text("Nenhum problema encontrado para gerar o relatório consolidado."),
-                  ));
-                }
-              },
-              icon: const Icon(Icons.picture_as_pdf, size: 18),
-              label: appText(text: 'Relatório Geral', color: AppColors.white),
-            ),
-          IconButton(
-            icon: const Icon(Icons.close, color: AppColors.white),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLeftColumn() {
-    return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSectionTitle('Detalhes Gerais'),
-          _buildDetailRow('Link da Interface:', widget.evaluation.link ?? '-'),
-          _buildDetailRow('Data de Início:', AppConvert.convertIsoDateToFormattedDate(widget.evaluation.startDate)),
-          _buildDetailRow('Data de Entrega:', AppConvert.convertIsoDateToFormattedDate(widget.evaluation.finalDate)),
-          _buildDetailRow('Domínio:', widget.evaluation.applicationType?.description ?? '-'),
-          const Divider(height: AppSpacing.big * 2, thickness: 1),
-          _buildSectionTitle('Objetivos'),
-          ...widget.objectives.map((obj) => _buildListItem(obj.description ?? '-', AppIcons.check)),
-          if (widget.objectives.isEmpty) appText(text: 'Nenhum objetivo cadastrado.'),
-          const Divider(height: AppSpacing.big * 2, thickness: 1),
-          _buildSectionTitle('Criada Por'),
-          _buildCreatorInfo(widget.evaluation.user?.name ?? 'Não identificado'),
+          appText(text: title, fontWeight: FontWeight.w700),
+          const SizedBox(height: 8),
+          Divider(height: 24, color: AppColors.grey300),
+          child,
         ],
       ),
     );
   }
+}
 
-  Widget _buildRightColumn() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildSectionTitle('Avaliações'),
-        if (_isLoadingProblems)
-          const Expanded(child: Center(child: CircularProgressIndicator()))
-        else if (widget.evaluators.isEmpty)
-          Expanded(child: Center(child: appText(text: 'Nenhum avaliador atribuído.')))
-        else
-          Expanded(
-            child: ListView.builder(
-              itemCount: widget.evaluators.length,
-              itemBuilder: (context, index) {
-                final evaluator = widget.evaluators[index];
-                final problemsOfThisEvaluator = _problemsByEvaluator[evaluator.user?.id] ?? [];
-                return _buildEvaluatorCard(evaluator, problemsOfThisEvaluator);
-              },
-            ),
-          ),
-      ],
-    );
-  }
+class _DetailRow extends StatelessWidget {
+  final String label;
+  final String value;
+  const _DetailRow({required this.label, required this.value});
 
-  Widget _buildEvaluatorCard(Evaluator evaluator, List<Problem> problems) {
-    final bool isConcluida = evaluator.status?.id == 2;
-    final bool isNaoIniciada = evaluator.status?.id == 3;
-    final bool isOwner = _currentUserId != null && _currentUserId == widget.evaluation.user?.id.toString();
-    final bool isThisEvaluator = _currentUserId != null && _currentUserId == evaluator.user?.id.toString();
-    final bool canDownloadReport = isConcluida;
-
-    return Card(
-      color: AppColors.grey900,
-      elevation: 3,
-      margin: const EdgeInsets.only(bottom: AppSpacing.normal),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.medium),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                appText(text: 'Avaliador: ${evaluator.user?.name ?? '-'}', color: AppColors.white, fontWeight: FontWeight.bold),
-                appText(
-                  text: 'Status: ${evaluator.status?.description ?? '-'}',
-                  color: isConcluida ? AppColors.green300 : (isNaoIniciada ? AppColors.grey500 : AppColors.amber300),
-                  fontSize: AppFontSize.fs12,
-                ),
-              ],
-            ),
-            Divider(color: AppColors.grey700),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                if (isNaoIniciada && isThisEvaluator)
-                  Padding(
-                    padding: const EdgeInsets.only(top: AppSpacing.medium),
-                    child: Center(
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.green300,
-                          foregroundColor: AppColors.white,
-                        ),
-                        onPressed: () => _showStartEvaluationConfirmationDialog(evaluator),
-                        icon: const Icon(Icons.play_arrow, size: 18),
-                        label: const Text('Começar Avaliação'),
-                      ),
-                    ),
-                  ),
-                if (canDownloadReport)
-                  TextButton.icon(
-                    style: TextButton.styleFrom(foregroundColor: AppColors.white),
-                    onPressed: _isGeneratingReport ? null : () {
-                      if (problems.isNotEmpty) {
-                        _handleReportGeneration(() => ReportGeneratorService.generateEvaluatorReport(
-                          context: context,
-                          evaluator: evaluator,
-                          evaluation: widget.evaluation,
-                          problems: problems,
-                          objectives: widget.objectives,
-                        ));
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                          content: Text("Este avaliador não encontrou problemas. Relatório não gerado."),
-                        ));
-                      }
-                    },
-                    icon: const Icon(AppIcons.download, size: 16),
-                    label: appText(text: 'Baixar Relatório', color: AppColors.white, fontSize: AppFontSize.fs12),
-                  ),
-                const Spacer(),
-                if (!isNaoIniciada)
-                  IconButton(
-                    tooltip: 'Visualizar Problemas',
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                      NavigationManager().goTo(
-                        ProblemaPage(
-                          evaluationId: widget.evaluation.id!,
-                          evaluatorId: evaluator.user!.id!,
-                          mode: ProblemaPageMode.view,
-                        ),
-                      );
-                    },
-                    icon: const Icon(AppIcons.view, color: AppColors.white, size: 18),
-                  ),
-                if (isThisEvaluator && !isNaoIniciada)
-                  IconButton(
-                    tooltip: 'Minha Avaliação',
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                      NavigationManager().goTo(
-                        ProblemaPage(
-                          evaluationId: widget.evaluation.id!,
-                          evaluatorId: evaluator.user!.id!,
-                          mode: ProblemaPageMode.edit,
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.playlist_add_check, color: AppColors.white, size: 18),
-                  ),
-                if (isOwner)
-                  IconButton(
-                    tooltip: 'Remover Avaliador',
-                    onPressed: () => _showDeleteEvaluatorConfirmationDialog(evaluator),
-                    icon: Icon(AppIcons.delete, color: AppColors.red300, size: 18),
-                  ),
-              ],
-            )
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.normal),
-      child: appText(text: title, fontSize: AppFontSize.fs18, fontWeight: FontWeight.bold, color: AppColors.black),
-    );
-  }
-
-  Widget _buildDetailRow(String label, String value) {
+  @override
+  Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.small),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(flex: 1, child: appText(text: label, fontWeight: FontWeight.bold)),
-          Expanded(flex: 2, child: appText(text: value, color: AppColors.grey800)),
+          Expanded(
+            flex: 1,
+            child:
+            Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(value, style: TextStyle(color: AppColors.grey800)),
+          ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildListItem(String text, IconData icon) {
-    return Card(
-      elevation: 0,
-      color: AppColors.grey100,
-      margin: const EdgeInsets.symmetric(vertical: AppSpacing.small),
-      child: ListTile(
-        leading: Icon(icon, color: AppColors.grey800, size: 20),
-        title: Text(text),
-        dense: true,
+class _ObjectiveChip extends StatelessWidget {
+  final String text;
+  const _ObjectiveChip({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppColors.grey300),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: const [
+          Icon(AppIcons.check, size: 14, color: AppColors.black),
+          SizedBox(width: 6),
+        ],
       ),
     );
   }
+}
 
-  Widget _buildCreatorInfo(String name) {
-    return Card(
-      elevation: 0,
-      color: AppColors.grey100,
-      margin: const EdgeInsets.symmetric(vertical: AppSpacing.small),
-      child: ListTile(
-        leading: const Icon(AppIcons.person, color: AppColors.black),
-        title: Text(name),
+class _EvaluatorTile extends StatelessWidget {
+  final Evaluator evaluator;
+  final List<Problem> problems;
+
+  final bool isOwner;
+  final bool isThisEvaluator;
+
+  final VoidCallback onStart;
+  final VoidCallback onViewProblems;
+  final VoidCallback onEditMine;
+  final VoidCallback onRemove;
+  final VoidCallback? onDownloadReport;
+
+  const _EvaluatorTile({
+    required this.evaluator,
+    required this.problems,
+    required this.isOwner,
+    required this.isThisEvaluator,
+    required this.onStart,
+    required this.onViewProblems,
+    required this.onEditMine,
+    required this.onRemove,
+    required this.onDownloadReport,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isConcluida = evaluator.status?.id == 2;
+    final isNaoIniciada = evaluator.status?.id == 3;
+
+    final Color badgeColor = isConcluida
+        ? AppColors.green300
+        : (isNaoIniciada ? AppColors.grey600 : AppColors.amber300);
+    final String badgeText = evaluator.status?.description ?? '-';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.normal),
+      padding: const EdgeInsets.all(AppSpacing.medium),
+      decoration: BoxDecoration(
+        color: AppColors.grey900,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.grey800),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Cabeçalho
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  evaluator.user?.name ?? '-',
+                  style: const TextStyle(
+                    color: AppColors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              Container(
+                padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                    color: badgeColor.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(99),
+                    border: Border.all(color: badgeColor, width: 1)),
+                child: Text(
+                  badgeText,
+                  style: const TextStyle(
+                    color: AppColors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Divider(color: Colors.white12, height: 24),
+
+          // Ações
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              if (isNaoIniciada && isThisEvaluator)
+                _PrimaryFilledAction(
+                  label: 'Começar Avaliação',
+                  icon: Icons.play_arrow,
+                  onPressed: onStart,
+                ),
+              if (!isNaoIniciada)
+                _OutlinedAction(
+                  label: 'Visualizar Problemas',
+                  icon: AppIcons.view,
+                  onPressed: onViewProblems,
+                ),
+              if (isThisEvaluator && !isNaoIniciada)
+                _OutlinedAction(
+                  label: 'Minha Avaliação',
+                  icon: Icons.playlist_add_check,
+                  onPressed: onEditMine,
+                ),
+              if (isConcluida && onDownloadReport != null)
+                _OutlinedAction(
+                  label: 'Baixar Relatório',
+                  icon: AppIcons.download,
+                  onPressed: onDownloadReport!,
+                ),
+              if (isOwner)
+                IconButton(
+                  tooltip: 'Remover Avaliador',
+                  onPressed: onRemove,
+                  icon:
+                  Icon(AppIcons.delete, color: AppColors.red300, size: 18),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }
+}
+
+class _PrimaryFilledAction extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  const _PrimaryFilledAction({
+    required this.label,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 18),
+      label: Text(label),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppColors.black,
+        foregroundColor: AppColors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        minimumSize: const Size(0, 40),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+}
+
+class _OutlinedAction extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  const _OutlinedAction({
+    required this.label,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 16, color: AppColors.white),
+      label: Text(label, style: const TextStyle(color: AppColors.white)),
+      style: OutlinedButton.styleFrom(
+        side: const BorderSide(color: Colors.white24, width: 1),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        minimumSize: const Size(0, 40),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        backgroundColor: Colors.white.withValues(alpha: 0.06),
+      ),
+    );
+  }
+}
+
+class _StatusInfo {
+  final String label;
+  final Color color;
+  _StatusInfo(this.label, this.color);
 }

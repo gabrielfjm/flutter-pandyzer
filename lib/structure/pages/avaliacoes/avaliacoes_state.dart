@@ -67,6 +67,17 @@ class AvaliacaoCamposLoaded extends AvaliacoesState {
   );
 }
 
+class StartEvaluationLoading extends AvaliacoesState {}
+
+class StartEvaluationSuccess extends AvaliacoesState {
+  final int evaluatorId;
+  final int evaluationId;
+  StartEvaluationSuccess({
+    required this.evaluatorId,
+    required this.evaluationId,
+  });
+}
+
 class EvaluationDetailsLoaded extends AvaliacoesState {
   EvaluationDetailsLoaded({
     required Evaluation evaluation,

@@ -1,5 +1,5 @@
-import 'package:flutter_pandyzer/structure/http/models/ApplicationType.dart';
-import 'package:flutter_pandyzer/structure/http/models/User.dart';
+import 'ApplicationType.dart';
+import 'User.dart';
 
 class Evaluation {
   int? id;
@@ -11,6 +11,8 @@ class Evaluation {
   ApplicationType? applicationType;
   User? user;
   int? completedEvaluationsCount;
+  int? notStartedEvaluationsCount;      // 👈 novo
+  int? totalEvaluatorsCount;            // 👈 novo
   bool isCurrentUserAnEvaluator;
   bool currentUserHasProblems;
   bool isPublic;
@@ -26,6 +28,8 @@ class Evaluation {
     this.applicationType,
     this.user,
     this.completedEvaluationsCount,
+    this.notStartedEvaluationsCount,   // 👈 novo
+    this.totalEvaluatorsCount,         // 👈 novo
     this.isCurrentUserAnEvaluator = false,
     this.currentUserHasProblems = false,
     this.isPublic = false,
@@ -45,12 +49,12 @@ class Evaluation {
           : null,
       user: json['user'] != null ? User.fromJson(json['user']) : null,
       completedEvaluationsCount: json['completedEvaluationsCount'],
-      isPublic: json['isPublic'] ?? false,
+      isPublic: (json['isPublic'] ?? json['public'] ?? false) == true,
       evaluatorsLimit: json['evaluatorsLimit'],
-      // Estes campos não vêm do JSON, serão populados no BLoC
+      // notStartedEvaluationsCount e totalEvaluatorsCount não vêm do JSON,
+      // o Bloc preenche depois
     );
   }
-
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = <String, dynamic>{};
@@ -66,7 +70,7 @@ class Evaluation {
     if (user != null) {
       data['user'] = user!.toJson();
     }
-    data['isPublic'] = isPublic;
+    data['public'] = isPublic;
     data['evaluatorsLimit'] = evaluatorsLimit;
     return data;
   }

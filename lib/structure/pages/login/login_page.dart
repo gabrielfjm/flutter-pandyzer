@@ -1,26 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+
 import 'package:flutter_pandyzer/core/app_colors.dart';
 import 'package:flutter_pandyzer/core/app_icons.dart';
 import 'package:flutter_pandyzer/core/app_strings.dart';
-import 'package:flutter_pandyzer/core/navigation_manager.dart';
+
 import 'package:flutter_pandyzer/structure/pages/cadastro_usuario/cadastro_usuario_page.dart';
 import 'package:flutter_pandyzer/structure/pages/login/login_bloc.dart';
 import 'package:flutter_pandyzer/structure/pages/login/login_event.dart';
 import 'package:flutter_pandyzer/structure/pages/login/login_state.dart';
 import 'package:flutter_pandyzer/structure/pages/main_page.dart';
-import 'package:flutter_pandyzer/structure/pages/perfil/perfil_page.dart';
+
 import 'package:flutter_pandyzer/structure/widgets/app_loading.dart';
-import 'package:flutter_pandyzer/structure/widgets/app_sized_box.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_text.dart';
-import 'package:flutter_pandyzer/structure/widgets/app_text_button.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_text_field.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_toast.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
-
   @override
   State<LoginPage> createState() => _LoginPageState();
 }
@@ -28,204 +28,269 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final LoginBloc _bloc = LoginBloc();
 
-  late AppTextField emailField;
-  late AppTextField senhaField;
-
   final _emailController = TextEditingController();
   final _senhaController = TextEditingController();
 
-  _onChangeState(LoginState state) async {
-    if(state is LoginSuccesState){
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('userId', state.usuario!.id.toString());
+  bool _obscure = true;
 
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const MainPage()),
-            (route) => false,
-      );
-    }
-
-    if(state is LoginError){
-      showAppToast(
-        context: context,
-        message: state.message!,
-        isError: true,
-      );
-    }
-  }
-
-  @override
-  void initState() {
-    emailField = AppTextField(
-      label: AppStrings.email,
-      controller: _emailController,
-    );
-
-    senhaField = AppTextField(
-      label: AppStrings.senha,
-      controller: _senhaController,
-    );
-
-    super.initState();
-  }
-
-  void _criarConta() {
-    NavigationManager().goTo(const PerfilPage());
-  }
-
-  void _logar() {
-    if(_emailController.text == AppStrings.empty){
-      showAppToast(
-        context: context,
-        message: AppStrings.mensagemEmailEstaVazio,
-        isError: true,
-      );
-      return;
-    }
-
-    if(_senhaController.text == AppStrings.empty){
-      showAppToast(
-        context: context,
-        message: AppStrings.mensagemSenhaEstaVazia,
-        isError: true,
-      );
-      return;
-    }
-
-    _bloc.add(
-      LogarEvent(
-        email: _emailController.text,
-        senha: _senhaController.text,
-      ),
-    );
-  }
-
-  Widget formLogin(){
-    return Material(
-      color: Colors.transparent,
-      child: Container(
-        width: 400,
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: const [
-            BoxShadow(
-              color: Colors.black12,
-              blurRadius: 15,
-              spreadRadius: 3,
-              offset: Offset(0, 5),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            appText(
-              text: 'Login',
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              height: 75,
-              child: AppTextField(
-                controller: _emailController,
-                label: AppStrings.email,
-              ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              height: 75,
-              child: AppTextField(
-                controller: _senhaController,
-                label: AppStrings.senha,
-                obscureText: true,
-              ),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: Column(
-                children: [
-                  // AppTextButton(
-                  //   width: 110,
-                  //   text: AppStrings.criarConta,
-                  //   onPressed: () => _criarConta(),
-                  //   backgroundColor: AppColors.transparent,
-                  //   textColor: AppColors.black,
-                  // ),
-                  // appSizedBox(width: 20),
-                  AppTextButton(
-                    width: 150,
-                    text: AppStrings.entrar,
-                    onPressed: () => _logar(),
-                    icon: AppIcons.login,
-                  ),
-                  const SizedBox(height: 16),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const CadastroUsuarioPage()),
-                      );
-                    },
-                    child: Text(
-                      'Não tem uma conta? Cadastre-se aqui.',
-                      style: TextStyle(
-                        color: Colors.blue,
-                        decoration: TextDecoration.underline,
-                      ),
-                    ),
-                  ),
-                ],
-              )
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget body(){
-    return Scaffold(
-      backgroundColor: AppColors.grey900,
-      body: Center(
-        child: formLogin(),
-      ),
-    );
-  }
-
-  Widget _blocConsumer() {
-    return BlocConsumer<LoginBloc, LoginState>(
-      bloc: _bloc,
-      listener: (context, state) => _onChangeState(state),
-      builder: (context, state) {
-        switch(state.runtimeType){
-          case LoginLoading:
-            return const AppLoading();
-          case LoginInitial:
-          case LoginError:
-            return body();
-          default:
-            return appSizedBox();
-        }
-      },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return _blocConsumer();
-  }
+  // medidas do cartão
+  static const double _shellMaxWidth = 1100;
+  static const double _shellMinHeight = 680;
+  static const double _formWidth = 460;
 
   @override
   void dispose() {
     _emailController.dispose();
     _senhaController.dispose();
+    _bloc.close();
     super.dispose();
+  }
+
+  Future<void> _onChangeState(LoginState state) async {
+    if (state is LoginSuccesState) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('userId', state.usuario!.id.toString());
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const MainPage()),
+            (route) => false,
+      );
+    }
+    if (state is LoginError) {
+      showAppToast(
+        context: context,
+        message: state.message ?? 'Erro ao entrar',
+        isError: true,
+      );
+    }
+  }
+
+  void _logar() {
+    if (_emailController.text.isEmpty) {
+      showAppToast(context: context, message: AppStrings.mensagemEmailEstaVazio, isError: true);
+      return;
+    }
+    if (_senhaController.text.isEmpty) {
+      showAppToast(context: context, message: AppStrings.mensagemSenhaEstaVazia, isError: true);
+      return;
+    }
+    _bloc.add(LogarEvent(email: _emailController.text, senha: _senhaController.text));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.white,
+      body: BlocConsumer<LoginBloc, LoginState>(
+        bloc: _bloc,
+        listener: (context, state) => _onChangeState(state),
+        builder: (context, state) {
+          if (state is LoginLoading) return const AppLoading();
+
+          return LayoutBuilder(
+            builder: (context, c) {
+              final viewH = MediaQuery.of(context).size.height;
+              final needsScroll = viewH < _shellMinHeight + 72; // margem/respiração
+
+              final card = Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: _shellMaxWidth),
+                  child: _Shell(
+                    height: _shellMinHeight, // 💡 altura fixa do cartão
+                    left: const _LeftPanel(),
+                    right: _RightPanel(
+                      emailController: _emailController,
+                      senhaController: _senhaController,
+                      obscure: _obscure,
+                      onToggleObscure: () => setState(() => _obscure = !_obscure),
+                      onSubmit: _logar,
+                    ),
+                  ),
+                ),
+              );
+
+              // padding externo + SafeArea para dar o “flutuante”
+              final content = Padding(
+                padding: const EdgeInsets.all(24),
+                child: card,
+              );
+
+              return SafeArea(
+                child: needsScroll
+                    ? SingleChildScrollView(child: content)
+                    : content,
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Cartão grande com borda, sombra e divisão 50/50
+class _Shell extends StatelessWidget {
+  final Widget left;
+  final Widget right;
+  final double height;
+  const _Shell({required this.left, required this.right, required this.height});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: height, // garante medida estável (evita tela branca)
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          border: Border.all(color: Colors.black, width: 1),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(.08),
+              blurRadius: 24,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Row(
+            children: [
+              Expanded(child: Container(color: AppColors.black, child: left)),
+              Container(width: 1, color: Colors.black12),
+              Expanded(child: right),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Painel esquerdo (mensagem de boas-vindas)
+class _LeftPanel extends StatelessWidget {
+  const _LeftPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 40).copyWith(top: 40, bottom: 32),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          appText(text: 'Boas-vindas', fontSize: 36, fontWeight: FontWeight.w800, color: AppColors.white),
+          const SizedBox(height: 8),
+          appText(text: 'Acesse sua conta e continue suas avaliações.', color: Colors.white70),
+          const Spacer(),
+          appText(text: 'Preto & Branco. Sem ruído.\nFoco total no seu trabalho.', color: Colors.white54),
+        ],
+      ),
+    );
+  }
+}
+
+/// Painel direito (form) — com Enter/NumpadEnter para enviar
+class _RightPanel extends StatelessWidget {
+  final TextEditingController emailController;
+  final TextEditingController senhaController;
+  final bool obscure;
+  final VoidCallback onToggleObscure;
+  final VoidCallback onSubmit;
+
+  const _RightPanel({
+    super.key,
+    required this.emailController,
+    required this.senhaController,
+    required this.obscure,
+    required this.onToggleObscure,
+    required this.onSubmit,
+  });
+
+  static const double _formWidth = 460;
+
+  @override
+  Widget build(BuildContext context) {
+    return Shortcuts(
+      shortcuts: <LogicalKeySet, Intent>{
+        LogicalKeySet(LogicalKeyboardKey.enter): const ActivateIntent(),
+        LogicalKeySet(LogicalKeyboardKey.numpadEnter): const ActivateIntent(),
+      },
+      child: Actions(
+        actions: <Type, Action<Intent>>{
+          ActivateIntent: CallbackAction<ActivateIntent>(onInvoke: (intent) { onSubmit(); return null; }),
+        },
+        child: Focus(
+          autofocus: true,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 40),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: _formWidth),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(AppIcons.login, size: 16, color: Colors.black87),
+                        const SizedBox(width: 8),
+                        appText(text: 'Entrar', fontWeight: FontWeight.w800, fontSize: 18),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    appText(text: 'Use seu e-mail e senha para acessar.', color: Colors.black54),
+                    const SizedBox(height: 20),
+
+                    AppTextField(label: AppStrings.email, controller: emailController, width: _formWidth),
+                    const SizedBox(height: 12),
+
+                    AppTextField(
+                      label: AppStrings.senha,
+                      controller: senhaController,
+                      obscureText: obscure,
+                      width: _formWidth,
+                      suffixIcon: IconButton(
+                        tooltip: obscure ? 'Mostrar senha' : 'Ocultar senha',
+                        icon: Icon(obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 20),
+                        onPressed: onToggleObscure,
+                      ),
+                    ),
+
+                    const SizedBox(height: 18),
+
+                    SizedBox(
+                      width: _formWidth,
+                      height: 44,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.black,
+                          foregroundColor: AppColors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onPressed: onSubmit,
+                        icon: const Icon(AppIcons.login, size: 16),
+                        label: const Text('Entrar'),
+                      ),
+                    ),
+
+                    const SizedBox(height: 18),
+
+                    Center(
+                      child: InkWell(
+                        onTap: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const CadastroUsuarioPage()));
+                        },
+                        child: const Text(
+                          'Não tem uma conta? Cadastre-se aqui.',
+                          style: TextStyle(decoration: TextDecoration.underline, color: Colors.black87),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
