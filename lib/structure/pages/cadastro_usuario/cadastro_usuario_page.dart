@@ -18,6 +18,9 @@ import 'package:flutter_pandyzer/structure/widgets/app_text_button.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_text_field.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_toast.dart';
 
+/// Caminho da logo (mesmo usado na AppBar)
+const String _logoAssetPath = 'assets/images/logo_app_bar.png';
+
 class CadastroUsuarioPage extends StatefulWidget {
   const CadastroUsuarioPage({super.key});
 
@@ -109,36 +112,47 @@ class _CadastroUsuarioPageState extends State<CadastroUsuarioPage> {
         builder: (context, state) {
           if (state is CadastroUsuarioLoadingState) return const AppLoading();
 
-          return Center(
-            child: LayoutBuilder(builder: (context, c) {
-              final h = MediaQuery.of(context).size.height;
-              final shellHeight = h < _shellMinHeight + 80 ? _shellMinHeight : (h - 80);
+          return LayoutBuilder(
+            builder: (context, c) {
+              final media = MediaQuery.of(context);
+              final safe = media.padding.top + media.padding.bottom;
 
-              return ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: _shellMaxWidth,
-                  minHeight: _shellMinHeight,
-                  maxHeight: shellHeight,
-                ),
-                child: _Shell(
-                  left: const _LeftPanel(),
-                  right: _RightPanel(
-                    nomeController: _nomeController,
-                    emailController: _emailController,
-                    senhaController: _senhaController,
-                    confirmarSenhaController: _confirmarSenhaController,
-                    obscureSenha: _obscureSenha,
-                    obscureConfirma: _obscureConfirma,
-                    onToggleSenha: () => setState(() => _obscureSenha = !_obscureSenha),
-                    onToggleConfirma: () => setState(() => _obscureConfirma = !_obscureConfirma),
-                    selectedRole: _selectedRole,
-                    onChangeRole: (r) => setState(() => _selectedRole = r),
-                    onSubmit: _cadastrar,
-                    onBack: _voltar,
+              const outerPadding = 24.0;
+              final availH = media.size.height - safe - (outerPadding * 2);
+
+              final double cardHeight = availH.clamp(560.0, 760.0);
+
+              final card = Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: _shellMaxWidth),
+                  child: _Shell(
+                    height: cardHeight,
+                    left: const _LeftPanel(),
+                    right: _RightPanel(
+                      nomeController: _nomeController,
+                      emailController: _emailController,
+                      senhaController: _senhaController,
+                      confirmarSenhaController: _confirmarSenhaController,
+                      obscureSenha: _obscureSenha,
+                      obscureConfirma: _obscureConfirma,
+                      onToggleSenha: () => setState(() => _obscureSenha = !_obscureSenha),
+                      onToggleConfirma: () => setState(() => _obscureConfirma = !_obscureConfirma),
+                      selectedRole: _selectedRole,
+                      onChangeRole: (r) => setState(() => _selectedRole = r),
+                      onSubmit: _cadastrar,
+                      onBack: _voltar,
+                    ),
                   ),
                 ),
               );
-            }),
+
+              return SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(outerPadding),
+                  child: card,
+                ),
+              );
+            },
           );
         },
       ),
@@ -146,58 +160,106 @@ class _CadastroUsuarioPageState extends State<CadastroUsuarioPage> {
   }
 }
 
-/// ——— Shell com borda contínua ———
 class _Shell extends StatelessWidget {
   final Widget left;
   final Widget right;
-  const _Shell({required this.left, required this.right});
+  final double height;
+
+  const _Shell({
+    required this.left,
+    required this.right,
+    required this.height,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        border: Border.all(color: Colors.black, width: 1),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: Row(
-          children: [
-            Expanded(child: Container(color: AppColors.black, child: left)),
-            Container(width: 1, color: Colors.black12),
-            Expanded(child: right),
+    return SizedBox(
+      height: height,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          border: Border.all(color: Colors.black, width: 1),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(.08),
+              blurRadius: 24,
+              offset: const Offset(0, 10),
+            ),
           ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          clipBehavior: Clip.hardEdge,
+          child: Row(
+            children: [
+              Expanded(child: Container(color: AppColors.black, child: left)),
+              Container(width: 1, color: Colors.black12),
+              Expanded(child: right),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-/// ——— Lado esquerdo ———
+/// Painel esquerdo: textos no topo + LOGO totalmente centralizada e grande
 class _LeftPanel extends StatelessWidget {
   const _LeftPanel();
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding:
-      const EdgeInsets.symmetric(horizontal: 40).copyWith(top: 40, bottom: 32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          appText(text: 'Crie sua conta', fontSize: 36, fontWeight: FontWeight.w800, color: AppColors.white),
-          const SizedBox(height: 8),
-          appText(text: 'Registre-se para começar a avaliar e criar projetos.', color: Colors.white70),
-          const Spacer(),
-          appText(text: 'Preto & Branco. Sem ruído.\nFoco total no seu trabalho.', color: Colors.white54),
-        ],
-      ),
+    return LayoutBuilder(
+      builder: (context, c) {
+        // Tamanho da logo proporcional à altura do painel
+        final double side = (c.maxHeight * 0.5).clamp(220.0, 420.0);
+
+        return Stack(
+          children: [
+            // Título e subtítulo no topo com padding
+            Positioned(
+              left: 40,
+              right: 40,
+              top: 40,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  appText(
+                    text: 'Crie sua conta',
+                    fontSize: 36,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.white,
+                  ),
+                  const SizedBox(height: 8),
+                  appText(
+                    text: 'Registre-se para começar a avaliar e criar projetos.',
+                    color: Colors.white70,
+                  ),
+                ],
+              ),
+            ),
+            // Logo centralizada no painel inteiro
+            Positioned.fill(
+              child: Center(
+                child: SizedBox(
+                  width: side,
+                  height: side,
+                  child: Image.asset(
+                    _logoAssetPath,
+                    fit: BoxFit.contain,
+                    filterQuality: FilterQuality.medium,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
 
-/// ——— Lado direito ———
 class _RightPanel extends StatelessWidget {
   final TextEditingController nomeController;
   final TextEditingController emailController;
@@ -242,12 +304,10 @@ class _RightPanel extends StatelessWidget {
       },
       child: Actions(
         actions: {
-          ActivateIntent: CallbackAction<ActivateIntent>(
-            onInvoke: (intent) {
-              onSubmit();
-              return null;
-            },
-          ),
+          ActivateIntent: CallbackAction<ActivateIntent>(onInvoke: (intent) {
+            onSubmit();
+            return null;
+          }),
         },
         child: Focus(
           autofocus: true,
@@ -259,7 +319,6 @@ class _RightPanel extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Cabeçalho com Voltar
                     Row(
                       children: [
                         IconButton(
@@ -268,16 +327,31 @@ class _RightPanel extends StatelessWidget {
                           icon: const Icon(AppIcons.arrowBack, size: 18),
                         ),
                         const SizedBox(width: 8),
-                        appText(text: AppStrings.cadastro, fontWeight: FontWeight.w800, fontSize: 18),
+                        appText(
+                          text: AppStrings.cadastro,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 18,
+                        ),
                       ],
                     ),
                     const SizedBox(height: 6),
-                    appText(text: 'Preencha seus dados para criar a conta.', color: Colors.black54),
+                    appText(
+                      text: 'Preencha seus dados para criar a conta.',
+                      color: Colors.black54,
+                    ),
                     const SizedBox(height: 20),
 
-                    AppTextField(label: AppStrings.nomeDoUsuario, controller: nomeController, width: _formWidth),
+                    AppTextField(
+                      label: AppStrings.nomeDoUsuario,
+                      controller: nomeController,
+                      width: _formWidth,
+                    ),
                     const SizedBox(height: 12),
-                    AppTextField(label: AppStrings.email, controller: emailController, width: _formWidth),
+                    AppTextField(
+                      label: AppStrings.email,
+                      controller: emailController,
+                      width: _formWidth,
+                    ),
                     const SizedBox(height: 12),
 
                     AppTextField(
@@ -287,7 +361,10 @@ class _RightPanel extends StatelessWidget {
                       width: _formWidth,
                       suffixIcon: IconButton(
                         tooltip: obscureSenha ? 'Mostrar senha' : 'Ocultar senha',
-                        icon: Icon(obscureSenha ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 20),
+                        icon: Icon(
+                          obscureSenha ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                          size: 20,
+                        ),
                         onPressed: onToggleSenha,
                       ),
                     ),
@@ -300,21 +377,24 @@ class _RightPanel extends StatelessWidget {
                       width: _formWidth,
                       suffixIcon: IconButton(
                         tooltip: obscureConfirma ? 'Mostrar senha' : 'Ocultar senha',
-                        icon: Icon(obscureConfirma ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 20),
+                        icon: Icon(
+                          obscureConfirma ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                          size: 20,
+                        ),
                         onPressed: onToggleConfirma,
                       ),
                     ),
 
                     const SizedBox(height: 18),
 
-                    // ===== TIPO DE USUÁRIO (Radios estilizados) =====
                     appText(
                       text: AppStrings.selecioneOTipoDeUsuario,
                       fontSize: AppFontSize.fs15,
                       fontWeight: FontWeight.bold,
                     ),
                     const SizedBox(height: 8),
-                    _RoleTile(
+
+                    _RoleCard(
                       title: 'Gerente de Produto',
                       subtitle: 'Cria avaliações e gerencia os resultados.',
                       icon: Icons.business_center_outlined,
@@ -322,8 +402,7 @@ class _RightPanel extends StatelessWidget {
                       groupValue: selectedRole,
                       onChanged: onChangeRole,
                     ),
-                    const SizedBox(height: 8),
-                    _RoleTile(
+                    _RoleCard(
                       title: 'Avaliador',
                       subtitle: 'Participa realizando as avaliações.',
                       icon: Icons.verified_user_outlined,
@@ -334,7 +413,6 @@ class _RightPanel extends StatelessWidget {
 
                     const SizedBox(height: 20),
 
-                    // Botão Cadastrar (mesma largura)
                     SizedBox(
                       width: _formWidth,
                       height: 44,
@@ -345,6 +423,7 @@ class _RightPanel extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: AppSpacing.small),
+                    const SizedBox(height: 24),
                   ],
                 ),
               ),
@@ -356,8 +435,8 @@ class _RightPanel extends StatelessWidget {
   }
 }
 
-/// Tile de papel com Radio estilizado
-class _RoleTile extends StatefulWidget {
+/// Card de seleção de perfil (clipado, sem sombra)
+class _RoleCard extends StatefulWidget {
   final String title;
   final String subtitle;
   final IconData icon;
@@ -365,7 +444,7 @@ class _RoleTile extends StatefulWidget {
   final _Role? groupValue;
   final ValueChanged<_Role?> onChanged;
 
-  const _RoleTile({
+  const _RoleCard({
     required this.title,
     required this.subtitle,
     required this.icon,
@@ -375,57 +454,71 @@ class _RoleTile extends StatefulWidget {
   });
 
   @override
-  State<_RoleTile> createState() => _RoleTileState();
+  State<_RoleCard> createState() => _RoleCardState();
 }
 
-class _RoleTileState extends State<_RoleTile> {
+class _RoleCardState extends State<_RoleCard> {
   bool _hover = false;
 
   @override
   Widget build(BuildContext context) {
     final selected = widget.groupValue == widget.value;
+    final borderColor =
+    selected ? AppColors.black : (_hover ? AppColors.grey700 : AppColors.grey600);
 
     return MouseRegion(
       onEnter: (_) => setState(() => _hover = true),
       onExit: (_) => setState(() => _hover = false),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => widget.onChanged(widget.value),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: selected ? AppColors.grey100 : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: selected ? AppColors.black : (_hover ? AppColors.grey700 : AppColors.grey600),
-              width: 1.2,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+        clipBehavior: Clip.hardEdge,
+        child: InkWell(
+          onTap: () => widget.onChanged(widget.value),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 140),
+            margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: selected ? AppColors.grey100 : Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: borderColor, width: selected ? 1.8 : 1.2),
             ),
-            boxShadow: selected
-                ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))]
-                : const [],
-          ),
-          child: Row(
-            children: [
-              Icon(widget.icon, size: 20, color: AppColors.black),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    appText(text: widget.title, fontWeight: FontWeight.w700),
-                    const SizedBox(height: 2),
-                    Text(widget.subtitle, style: const TextStyle(color: Colors.black54, fontSize: 12)),
-                  ],
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(.06),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(widget.icon, color: AppColors.black, size: 18),
                 ),
-              ),
-              Radio<_Role>(
-                value: widget.value,
-                groupValue: widget.groupValue,
-                onChanged: widget.onChanged,
-                activeColor: AppColors.black,
-              ),
-            ],
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      appText(text: widget.title, fontWeight: FontWeight.w700),
+                      const SizedBox(height: 2),
+                      Text(
+                        widget.subtitle,
+                        style: const TextStyle(color: Colors.black54, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                Radio<_Role>(
+                  value: widget.value,
+                  groupValue: widget.groupValue,
+                  onChanged: widget.onChanged,
+                  activeColor: AppColors.black,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ],
+            ),
           ),
         ),
       ),

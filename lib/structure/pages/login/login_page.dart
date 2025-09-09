@@ -19,6 +19,9 @@ import 'package:flutter_pandyzer/structure/widgets/app_toast.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// Caminho da logo (mesmo usado na AppBar)
+const String _logoAssetPath = 'assets/images/logo_app_bar.png';
+
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
   @override
@@ -88,14 +91,18 @@ class _LoginPageState extends State<LoginPage> {
 
           return LayoutBuilder(
             builder: (context, c) {
-              final viewH = MediaQuery.of(context).size.height;
-              final needsScroll = viewH < _shellMinHeight + 72; // margem/respiração
+              final media = MediaQuery.of(context);
+              final safe = media.padding.top + media.padding.bottom;
+
+              const outerPadding = 24.0;
+              final availH = media.size.height - safe - (outerPadding * 2);
+              final double cardHeight = availH.clamp(560.0, 760.0);
 
               final card = Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: _shellMaxWidth),
                   child: _Shell(
-                    height: _shellMinHeight, // 💡 altura fixa do cartão
+                    height: cardHeight,
                     left: const _LeftPanel(),
                     right: _RightPanel(
                       emailController: _emailController,
@@ -108,16 +115,11 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               );
 
-              // padding externo + SafeArea para dar o “flutuante”
-              final content = Padding(
-                padding: const EdgeInsets.all(24),
-                child: card,
-              );
-
               return SafeArea(
-                child: needsScroll
-                    ? SingleChildScrollView(child: content)
-                    : content,
+                child: Padding(
+                  padding: const EdgeInsets.all(outerPadding),
+                  child: card,
+                ),
               );
             },
           );
@@ -127,7 +129,6 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-/// Cartão grande com borda, sombra e divisão 50/50
 class _Shell extends StatelessWidget {
   final Widget left;
   final Widget right;
@@ -137,7 +138,7 @@ class _Shell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: height, // garante medida estável (evita tela branca)
+      height: height,
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: AppColors.white,
@@ -166,24 +167,58 @@ class _Shell extends StatelessWidget {
   }
 }
 
-/// Painel esquerdo (mensagem de boas-vindas)
+/// Painel esquerdo (título no topo + LOGO centralizada)
 class _LeftPanel extends StatelessWidget {
   const _LeftPanel();
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 40).copyWith(top: 40, bottom: 32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          appText(text: 'Boas-vindas', fontSize: 36, fontWeight: FontWeight.w800, color: AppColors.white),
-          const SizedBox(height: 8),
-          appText(text: 'Acesse sua conta e continue suas avaliações.', color: Colors.white70),
-          const Spacer(),
-          appText(text: 'Preto & Branco. Sem ruído.\nFoco total no seu trabalho.', color: Colors.white54),
-        ],
-      ),
+    return LayoutBuilder(
+      builder: (context, c) {
+        // Tamanho da logo proporcional à altura
+        final double side = (c.maxHeight * 0.5).clamp(220.0, 420.0);
+
+        return Stack(
+          children: [
+            // Título e subtítulo no topo
+            Positioned(
+              left: 40,
+              right: 40,
+              top: 40,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  appText(
+                    text: 'Boas-vindas',
+                    fontSize: 36,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.white,
+                  ),
+                  const SizedBox(height: 8),
+                  appText(
+                    text: 'Acesse sua conta e continue suas avaliações.',
+                    color: Colors.white70,
+                  ),
+                ],
+              ),
+            ),
+            // Logo no centro do painel preto
+            Positioned.fill(
+              child: Center(
+                child: SizedBox(
+                  width: side,
+                  height: side,
+                  child: Image.asset(
+                    _logoAssetPath,
+                    fit: BoxFit.contain,
+                    filterQuality: FilterQuality.medium,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -216,7 +251,10 @@ class _RightPanel extends StatelessWidget {
       },
       child: Actions(
         actions: <Type, Action<Intent>>{
-          ActivateIntent: CallbackAction<ActivateIntent>(onInvoke: (intent) { onSubmit(); return null; }),
+          ActivateIntent: CallbackAction<ActivateIntent>(onInvoke: (intent) {
+            onSubmit();
+            return null;
+          }),
         },
         child: Focus(
           autofocus: true,
@@ -230,8 +268,6 @@ class _RightPanel extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        const Icon(AppIcons.login, size: 16, color: Colors.black87),
-                        const SizedBox(width: 8),
                         appText(text: 'Entrar', fontWeight: FontWeight.w800, fontSize: 18),
                       ],
                     ),
