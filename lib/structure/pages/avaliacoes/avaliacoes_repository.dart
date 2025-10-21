@@ -92,7 +92,7 @@ mixin AvaliacoesRepository {
 
   // ========= OBJETIVOS =========
   static Future<List<Objective>> getObjectivesByEvaluationId(int evaluationId) {
-    return ObjetivoService.getObjetivoByIdAvaliacao(evaluationId);
+    return ObjetivoService.getByEvaluationId(evaluationId);
   }
 
   static Future<Objective> insertObjetivo(Objective o) {

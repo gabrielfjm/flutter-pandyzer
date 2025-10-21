@@ -13,12 +13,13 @@ mixin ObjetivoService {
     final resp = await HttpClient.get(rota);
     if (resp.statusCode == 200) {
       final List<dynamic> data = jsonDecode(resp.body);
-      return data.map((e) => Objective.fromJson(e)).toList();
+      return data
+          .map<Objective>((e) => Objective.fromJson(e as Map<String, dynamic>))
+          .toList();
     }
-    throw Exception(
-      'Erro ao buscar objetivos: ${resp.statusCode} ${resp.body}',
-    );
+    throw Exception('Erro ao buscar objetivos: ${resp.statusCode} ${resp.body}');
   }
+
 
   static Future<Objective> getObjetivoById(int id) async {
     final resp = await HttpClient.get('$rota/$id');
@@ -33,14 +34,24 @@ mixin ObjetivoService {
   /// NOVO nome "canônico"
   static Future<List<Objective>> getByEvaluationId(int evaluationId) async {
     final resp = await HttpClient.get('$rota/evaluation/$evaluationId');
+
     if (resp.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(resp.body);
-      return data.map((e) => Objective.fromJson(e)).toList();
+      final data = jsonDecode(resp.body);
+
+      if (data is List) {
+        return data
+            .map<Objective>((e) => Objective.fromJson(e as Map<String, dynamic>))
+            .toList();
+      }
+      if (data is Map && data['content'] is List) {
+        return (data['content'] as List)
+            .map<Objective>((e) => Objective.fromJson(e as Map<String, dynamic>))
+            .toList();
+      }
+      return const [];
     }
-    throw Exception(
-      'Erro ao buscar objetivos da avaliação $evaluationId: '
-          '${resp.statusCode} ${resp.body}',
-    );
+
+    throw Exception('Falha ao buscar objetivos (${resp.statusCode})');
   }
 
   /// Alias de compatibilidade com o código legado

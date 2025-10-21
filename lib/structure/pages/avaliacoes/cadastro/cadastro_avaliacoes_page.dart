@@ -127,18 +127,51 @@ class _CadastroAvaliacaoPageState extends State<CadastroAvaliacaoPage> {
   }
 
   Future<List<User>> _fetchEvaluatorUsers() async {
-    // Backend (users): use a rota em inglês
-    // Ajuste aqui caso sua rota seja diferente:
-    // ex.: GET /users/evaluators
-    final resp = await HttpClient.get('/users/evaluators');
-    if (resp.statusCode == 200) {
-      final list = (jsonDecode(resp.body) as List)
-          .map((e) => User.fromJson(e))
-          .toList();
-      return list;
+    // FIX: torna robusto contra 400 — tenta a rota canônica e uma alternativa,
+    // e se ambas falharem, retorna [] sem quebrar a tela.
+    try {
+      final resp = await HttpClient.get('/users/evaluators');
+      if (resp.statusCode == 200) {
+        final list = (jsonDecode(resp.body) as List)
+            .map((e) => User.fromJson(e))
+            .toList();
+        return list;
+      }
+      // fallback se sua API estiver publicada em pt-BR:
+      final alt = await HttpClient.get('/usuarios/avaliadores');
+      if (alt.statusCode == 200) {
+        final list = (jsonDecode(alt.body) as List)
+            .map((e) => User.fromJson(e))
+            .toList();
+        return list;
+      }
+
+      // último fallback: tenta via service se existir esse método no seu projeto
+      try {
+        final viaService = await UsuarioService.getAvaliadores();
+        return viaService;
+      } catch (_) {}
+
+      // Se nada deu 200, não lançar exceção: devolve [] e avisa
+      if (mounted) {
+        showAppToast(
+          context: context,
+          message: 'Aviso: não foi possível carregar usuários avaliadores (${resp.statusCode}).',
+          isError: true,
+        );
+      }
+      return <User>[];
+    } catch (e) {
+      // rede/offline/etc → não quebra a tela
+      if (mounted) {
+        showAppToast(
+          context: context,
+          message: 'Aviso: falha ao buscar avaliadores.',
+          isError: true,
+        );
+      }
+      return <User>[];
     }
-    // Deixa explícito o status para facilitar debug
-    throw Exception('Erro ao buscar usuários avaliadores: ${resp.statusCode}');
   }
 
   Future<void> _bootstrap() async {
@@ -150,7 +183,7 @@ class _CadastroAvaliacaoPageState extends State<CadastroAvaliacaoPage> {
 
       final results = await Future.wait([
         _fetchApplicationTypes(),
-        _fetchEvaluatorUsers(),
+        _fetchEvaluatorUsers(), // FIX: agora não lança exceção
       ]);
 
       _dominios = results[0] as List<ApplicationType>;
