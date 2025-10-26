@@ -767,11 +767,11 @@ class _EvaluatorTile extends StatelessWidget {
                   onPressed: onEditMine,
                 ),
               if (isConcluida && onDownloadReport != null)
-                _OutlinedAction(
-                  label: 'Baixar Relatório',
-                  icon: AppIcons.download,
-                  onPressed: onDownloadReport!,
-                ),
+                // _OutlinedAction(
+                //   label: 'Baixar Relatório',
+                //   icon: AppIcons.download,
+                //   onPressed: onDownloadReport!,
+                // ),
               if (isOwner)
                 IconButton(
                   tooltip: 'Remover Avaliador',
