@@ -21,7 +21,7 @@ class PandyzerApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Pandyzer',
+      title: 'Panda',
       theme: AppTheme.lightTheme,
       home: FutureBuilder<bool>(
         future: _checkSession(),
