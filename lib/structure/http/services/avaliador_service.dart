@@ -9,8 +9,8 @@ class AvaliadorService {
   // Controllers do back:
   // - EvaluatorController  => /evaluators
   // - ProblemController    => /problems
-  static const String baseUrl = "http://localhost:8080/evaluators";
-  static const String problemsBaseUrl = "http://localhost:8080/problems";
+  static const String baseUrl = "https://panda-microservice-f3d5adc8dxewfub8.brazilsouth-01.azurewebsites.net/evaluators";
+  static const String problemsBaseUrl = "https://panda-microservice-f3d5adc8dxewfub8.brazilsouth-01.azurewebsites.net/problems";
 
   /// Lista os avaliadores de uma avaliação
   static Future<List<Evaluator>> getByEvaluation(int evaluationId) async {

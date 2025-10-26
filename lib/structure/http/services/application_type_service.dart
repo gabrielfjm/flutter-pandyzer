@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_pandyzer/structure/http/models/ApplicationType.dart';
 
 class ApplicationTypeService {
-  static const String baseUrl = "http://localhost:8080/applicationtype";
+  static const String baseUrl = "https://panda-microservice-f3d5adc8dxewfub8.brazilsouth-01.azurewebsites.net/applicationtype";
 
   /// Lista todos os ApplicationTypes
   /// Backend: GET /applicationtype
