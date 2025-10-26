@@ -19,7 +19,7 @@ class ChatbotResponseDTO {
 
 // Serviço de Chatbot
 class ChatbotService {
-  static const String _baseUrl = 'http://localhost:8080';
+  static const String _baseUrl = 'https://panda-microservice-f3d5adc8dxewfub8.brazilsouth-01.azurewebsites.net';
 
   static Future<String> getResponseFromBackend(String prompt) async {
     try {

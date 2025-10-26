@@ -8,7 +8,7 @@ import 'package:http/http.dart' as http;
 import 'dart:html' as html show AnchorElement, Blob, Url;
 
 class HttpClient {
-  static const String baseUrl = 'http://localhost:8080';
+  static const String baseUrl = 'https://panda-microservice-f3d5adc8dxewfub8.brazilsouth-01.azurewebsites.net';
 
   static Map<String, String> defaultHeaders = {
     'Content-Type': 'application/json',
