@@ -17,12 +17,13 @@ import 'package:flutter_pandyzer/structure/pages/problema/problema_page.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_text.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../http/services/avaliacoes_report_service.dart';
 import '../../../widgets/app_confirm_dialog.dart';
 
 class AvaliacoesDetalhesModal extends StatefulWidget {
   final AvaliacoesBloc bloc;
   final Evaluation evaluation;
-  final List<Objective> objectives;
+  final List<Objective> objectives; // pode vir vazio
   final List<Evaluator> evaluators;
 
   const AvaliacoesDetalhesModal({
@@ -40,23 +41,64 @@ class AvaliacoesDetalhesModal extends StatefulWidget {
 
 class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
   String? _currentUserId;
+
+  // ---- objetivos & loading ----
+  List<Objective> _objectives = [];
+  bool _isLoadingObjectives = true;
+
+  // ---- problemas por avaliador ----
   final Map<int, List<Problem>> _problemsByEvaluator = {};
   bool _isLoadingProblems = true;
+
+  // ---- relatório ----
   bool _isGeneratingReport = false;
 
   @override
   void initState() {
     super.initState();
     _loadCurrentUser();
-    _loadProblems();
+    _bootstrap(); // objetivos -> problemas
   }
 
   Future<void> _loadCurrentUser() async {
     final prefs = await SharedPreferences.getInstance();
-    if (mounted) {
+    if (!mounted) return;
+    setState(() => _currentUserId = prefs.getString('userId'));
+  }
+
+  Future<void> _bootstrap() async {
+    await _ensureObjectives();
+    await _loadProblems();
+  }
+
+  /// Garante que `_objectives` esteja populado:
+  /// - usa os `widget.objectives` se já vierem preenchidos
+  /// - caso contrário busca do backend
+  Future<void> _ensureObjectives() async {
+    if (widget.objectives.isNotEmpty) {
       setState(() {
-        _currentUserId = prefs.getString('userId');
+        _objectives = widget.objectives;
+        _isLoadingObjectives = false;
       });
+      return;
+    }
+
+    try {
+      if (widget.evaluation.id != null) {
+        final objs = await AvaliacoesRepository.getObjectivesByEvaluationId(
+          widget.evaluation.id!,
+        );
+        if (!mounted) return;
+        setState(() {
+          _objectives = objs;
+          _isLoadingObjectives = false;
+        });
+      } else {
+        setState(() => _isLoadingObjectives = false);
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isLoadingObjectives = false);
     }
   }
 
@@ -65,59 +107,59 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
       setState(() => _isLoadingProblems = false);
       return;
     }
-    final groupedProblems = <int, List<Problem>>{};
+
+    final grouped = <int, List<Problem>>{};
+
     for (final evaluator in widget.evaluators) {
       final evaluatorUserId = evaluator.user?.id;
-      if (evaluatorUserId != null) {
-        final List<Problem> problemsForThisEvaluator = [];
-        for (final objective in widget.objectives) {
-          final objectiveId = objective.id;
-          if (objectiveId != null) {
-            final problems = await AvaliacoesRepository
-                .getProblemsByIdObjetivoAndIdEvaluator(
-              objectiveId,
-              evaluatorUserId,
-            );
-            problemsForThisEvaluator.addAll(problems);
-          }
-        }
-        groupedProblems[evaluatorUserId] = problemsForThisEvaluator;
+      if (evaluatorUserId == null) continue;
+
+      final problemsForThisEvaluator = <Problem>[];
+
+      // ⚠️ usar _objectives (não widget.objectives)
+      for (final objective in _objectives) {
+        final objectiveId = objective.id;
+        if (objectiveId == null) continue;
+
+        final problems = await AvaliacoesRepository
+            .getProblemsByIdObjetivoAndIdEvaluator(
+          objectiveId,
+          evaluatorUserId,
+        );
+        problemsForThisEvaluator.addAll(problems);
       }
+
+      grouped[evaluatorUserId] = problemsForThisEvaluator;
     }
 
-    if (mounted) {
-      setState(() {
-        _problemsByEvaluator.addAll(groupedProblems);
-        _isLoadingProblems = false;
-      });
-    }
+    if (!mounted) return;
+    setState(() {
+      _problemsByEvaluator
+        ..clear()
+        ..addAll(grouped);
+      _isLoadingProblems = false;
+    });
   }
 
   // ----------------- Helpers de Status / Badges -----------------
 
   _StatusInfo _statusGeral(Evaluation e) {
-    DateTime? parse(String? iso) {
-      if (iso == null) return null;
-      try {
-        return DateTime.parse(iso);
-      } catch (_) {
-        return null;
-      }
+    // 1 = Em andamento, 2 = Concluída, 3 = Não iniciada (ajuste se for diferente)
+    if (widget.evaluators.isEmpty) {
+      return _StatusInfo('Não iniciada', AppColors.grey600);
     }
 
-    final now = DateTime.now();
-    final start = parse(e.startDate);
-    final end = parse(e.finalDate);
+    final allNotStarted = widget.evaluators.every((ev) => ev.status?.id == 3);
+    if (allNotStarted) {
+      return _StatusInfo('Não iniciada', AppColors.grey600);
+    }
 
-    if (start != null && now.isBefore(start)) {
-      return _StatusInfo('Agendada', AppColors.grey600);
+    final allDone = widget.evaluators.isNotEmpty &&
+        widget.evaluators.every((ev) => ev.status?.id == 2);
+    if (allDone) {
+      return _StatusInfo('Concluída', AppColors.green300);
     }
-    if (start != null && end != null && now.isAfter(start) && now.isBefore(end)) {
-      return _StatusInfo('Em andamento', AppColors.primary);
-    }
-    if (end != null && now.isAfter(end)) {
-      return _StatusInfo('Encerrada', AppColors.red300);
-    }
+
     return _StatusInfo('Em andamento', AppColors.primary);
   }
 
@@ -171,13 +213,11 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
           TextButton(
             style: TextButton.styleFrom(foregroundColor: AppColors.green300),
             onPressed: () {
-              // AGORA envia o ID DO USUÁRIO DO AVALIADOR
               widget.bloc.add(StartEvaluationEvent(
-                evaluatorRecordId: evaluator.id!,         // registro Evaluator
-                evaluatorUserId: evaluator.user!.id!,     // usuário do avaliador
+                evaluatorRecordId: evaluator.id!,
+                evaluatorUserId: evaluator.user!.id!,
                 evaluationId: widget.evaluation.id!,
               ));
-
               _closeDialogsAndGoToProblems(evaluatorUserId);
             },
             child: const Text('Confirmar e Iniciar'),
@@ -189,8 +229,8 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
 
   void _closeDialogsAndGoToProblems(int evaluatorUserId) {
     final nav = Navigator.of(context, rootNavigator: true);
-    if (nav.canPop()) nav.pop(); // fecha confirmação
-    if (nav.canPop()) nav.pop(); // fecha modal
+    if (nav.canPop()) nav.pop();
+    if (nav.canPop()) nav.pop();
 
     NavigationManager().goTo(
       ProblemaPage(
@@ -221,9 +261,9 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
         onConfirm: () {
           widget.bloc.add(
             DeleteEvaluatorAndProblems(
-              evaluatorRecordId: evaluator.id!,      // ID do registro "Evaluator"
-              evaluatorUserId: evaluator.user!.id!,  // ID do usuário do avaliador
-              evaluationId: widget.evaluation.id!,  // ID da avaliação
+              evaluatorRecordId: evaluator.id!,
+              evaluatorUserId: evaluator.user!.id!,
+              evaluationId: widget.evaluation.id!,
             ),
           );
           Navigator.of(context).pop();
@@ -231,7 +271,6 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
       ),
     );
   }
-
 
   Future<void> _handleReportGeneration(
       Future<void> Function() reportFunction) async {
@@ -287,8 +326,7 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   appText(
-                    text:
-                    widget.evaluation.description ?? 'Detalhes da Avaliação',
+                    text: widget.evaluation.description ?? 'Detalhes da Avaliação',
                     color: AppColors.white,
                     fontSize: AppFontSize.fs20,
                     fontWeight: FontWeight.bold,
@@ -298,8 +336,7 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      _chip(status.label,
-                          color: status.color, icon: AppIcons.info),
+                      _chip(status.label, color: status.color, icon: AppIcons.info),
                       _chip('Início $start', icon: AppIcons.calendar),
                       _chip('Entrega $end', icon: AppIcons.calendar),
                       if (widget.evaluation.isPublic)
@@ -320,33 +357,19 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
                 style: TextButton.styleFrom(foregroundColor: AppColors.white),
                 onPressed: _isGeneratingReport
                     ? null
-                    : () {
-                  final completedEvaluators = widget.evaluators
-                      .where((e) => e.status?.id == 2)
-                      .toList();
-                  final problemsOfCompleted = Map.fromEntries(
-                    _problemsByEvaluator.entries.where(
-                          (entry) => completedEvaluators
-                          .any((e) => e.user?.id == entry.key),
-                    ),
-                  );
-                  if (problemsOfCompleted.isNotEmpty) {
-                    _handleReportGeneration(
-                          () => ReportGeneratorService
-                          .generateConsolidatedReport(
-                        context: context,
-                        evaluation: widget.evaluation,
-                        evaluators: completedEvaluators,
-                        problemsByEvaluator: problemsOfCompleted,
-                        objectives: widget.objectives,
-                      ),
-                    );
-                  } else {
-                    ScaffoldMessenger.of(context)
-                        .showSnackBar(const SnackBar(
-                      content: Text(
-                          "Nenhum problema encontrado para gerar o relatório consolidado."),
-                    ));
+                    : () async {
+                  setState(() => _isGeneratingReport = true);
+                  try {
+                    await AvaliacoesReportService
+                        .downloadConsolidated(widget.evaluation.id!);
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(e.toString())),
+                      );
+                    }
+                  } finally {
+                    if (mounted) setState(() => _isGeneratingReport = false);
                   }
                 },
                 icon: const Icon(Icons.picture_as_pdf, size: 18),
@@ -378,39 +401,52 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
                           child: Column(
                             children: [
                               _DetailRow(
-                                  label: 'Link da Interface',
-                                  value: widget.evaluation.link ?? '-'),
+                                label: 'Link da Interface',
+                                value: widget.evaluation.link ?? '-',
+                              ),
                               _DetailRow(label: 'Data de Início', value: start),
                               _DetailRow(label: 'Data de Entrega', value: end),
                               _DetailRow(
-                                  label: 'Domínio',
-                                  value: widget.evaluation.applicationType
-                                      ?.description ??
-                                      '-'),
+                                label: 'Domínio',
+                                value: widget.evaluation.applicationType
+                                    ?.description ??
+                                    '-',
+                              ),
                             ],
                           ),
                         ),
                         const SizedBox(height: AppSpacing.big),
+
+                        // Objetivos
                         _SectionCard(
                           title: 'Objetivos',
-                          child: Column(
+                          child: _isLoadingObjectives
+                              ? const Padding(
+                            padding: EdgeInsets.all(12),
+                            child: Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                          )
+                              : Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              if (widget.objectives.isEmpty)
+                              if (_objectives.isEmpty)
                                 const Text('Nenhum objetivo cadastrado.'),
-                              if (widget.objectives.isNotEmpty)
+                              if (_objectives.isNotEmpty)
                                 Wrap(
                                   spacing: 8,
                                   runSpacing: 8,
-                                  children: widget.objectives.map((o) {
-                                    return _ObjectiveChip(
-                                        text: o.description ?? '-');
-                                  }).toList(),
+                                  children: _objectives
+                                      .map((o) => _ObjectiveChip(
+                                    text: o.description ?? '-',
+                                  ))
+                                      .toList(),
                                 ),
                             ],
                           ),
                         ),
                         const SizedBox(height: AppSpacing.big),
+
                         _SectionCard(
                           title: 'Criada por',
                           child: ListTile(
@@ -426,6 +462,7 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
                   ),
                 ),
                 const SizedBox(width: AppSpacing.big * 2),
+
                 // DIREITA
                 Expanded(
                   flex: 2,
@@ -443,21 +480,17 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
                             : ListView.builder(
                           itemCount: widget.evaluators.length,
                           itemBuilder: (context, index) {
-                            final evaluator =
-                            widget.evaluators[index];
+                            final evaluator = widget.evaluators[index];
                             final problems =
-                                _problemsByEvaluator[
-                                evaluator.user?.id] ??
+                                _problemsByEvaluator[evaluator.user?.id] ??
                                     [];
                             final isOwner = _currentUserId != null &&
                                 _currentUserId ==
                                     widget.evaluation.user?.id
                                         .toString();
-                            final isThisEvaluator =
-                                _currentUserId != null &&
-                                    _currentUserId ==
-                                        evaluator.user?.id
-                                            .toString();
+                            final isThisEvaluator = _currentUserId != null &&
+                                _currentUserId ==
+                                    evaluator.user?.id.toString();
 
                             return _EvaluatorTile(
                               evaluator: evaluator,
@@ -504,8 +537,7 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
                                   evaluation:
                                   widget.evaluation,
                                   problems: problems,
-                                  objectives:
-                                  widget.objectives,
+                                  objectives: _objectives, // <-- importante
                                 ),
                               ),
                             );
@@ -586,8 +618,8 @@ class _DetailRow extends StatelessWidget {
         children: [
           Expanded(
             flex: 1,
-            child:
-            Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+            child: Text(label,
+                style: const TextStyle(fontWeight: FontWeight.bold)),
           ),
           Expanded(
             flex: 2,
@@ -614,14 +646,22 @@ class _ObjectiveChip extends StatelessWidget {
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        children: const [
-          Icon(AppIcons.check, size: 14, color: AppColors.black),
-          SizedBox(width: 6),
+        children: [
+          const Icon(AppIcons.check, size: 14, color: AppColors.black),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: const TextStyle(
+              color: AppColors.black,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );
   }
 }
+
 
 class _EvaluatorTile extends StatelessWidget {
   final Evaluator evaluator;
@@ -682,12 +722,12 @@ class _EvaluatorTile extends StatelessWidget {
                 ),
               ),
               Container(
-                padding:
-                const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                    color: badgeColor.withValues(alpha: 0.18),
-                    borderRadius: BorderRadius.circular(99),
-                    border: Border.all(color: badgeColor, width: 1)),
+                  color: badgeColor.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(99),
+                  border: Border.all(color: badgeColor, width: 1),
+                ),
                 child: Text(
                   badgeText,
                   style: const TextStyle(
@@ -736,8 +776,7 @@ class _EvaluatorTile extends StatelessWidget {
                 IconButton(
                   tooltip: 'Remover Avaliador',
                   onPressed: onRemove,
-                  icon:
-                  Icon(AppIcons.delete, color: AppColors.red300, size: 18),
+                  icon: Icon(AppIcons.delete, color: AppColors.red300, size: 18),
                 ),
             ],
           ),
