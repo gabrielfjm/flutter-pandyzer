@@ -643,7 +643,7 @@ class _DetailRow extends StatelessWidget {
           )
         : SelectableText(
             value,
-            style: const TextStyle(color: AppColors.grey800),
+            style: TextStyle(color: AppColors.grey800),
           );
 
     return Padding(
