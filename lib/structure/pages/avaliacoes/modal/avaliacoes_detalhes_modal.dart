@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_pandyzer/core/app_colors.dart';
 import 'package:flutter_pandyzer/core/app_convert.dart';
@@ -16,6 +17,7 @@ import 'package:flutter_pandyzer/structure/pages/avaliacoes/avaliacoes_repositor
 import 'package:flutter_pandyzer/structure/pages/problema/problema_page.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_text.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:universal_html/html.dart' as html;
 
 import '../../../http/services/avaliacoes_report_service.dart';
 import '../../../widgets/app_confirm_dialog.dart';
@@ -403,6 +405,7 @@ class _AvaliacoesDetalhesModalState extends State<AvaliacoesDetalhesModal> {
                               _DetailRow(
                                 label: 'Link da Interface',
                                 value: widget.evaluation.link ?? '-',
+                                isLink: true,
                               ),
                               _DetailRow(label: 'Data de Início', value: start),
                               _DetailRow(label: 'Data de Entrega', value: end),
@@ -608,10 +611,41 @@ class _SectionCard extends StatelessWidget {
 class _DetailRow extends StatelessWidget {
   final String label;
   final String value;
-  const _DetailRow({required this.label, required this.value});
+  final bool isLink;
+  const _DetailRow({
+    required this.label,
+    required this.value,
+    this.isLink = false,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final bool isValidLink = isLink &&
+        value.trim().isNotEmpty &&
+        Uri.tryParse(value)?.hasScheme == true;
+
+    void openLink() {
+      if (!isValidLink || !kIsWeb) return;
+      html.window.open(value, '_blank');
+    }
+
+    final Widget valueWidget = isValidLink
+        ? MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: SelectableText(
+              value,
+              style: const TextStyle(
+                color: AppColors.primary,
+                decoration: TextDecoration.underline,
+              ),
+              onTap: openLink,
+            ),
+          )
+        : SelectableText(
+            value,
+            style: const TextStyle(color: AppColors.grey800),
+          );
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.small),
       child: Row(
@@ -623,7 +657,7 @@ class _DetailRow extends StatelessWidget {
           ),
           Expanded(
             flex: 2,
-            child: Text(value, style: TextStyle(color: AppColors.grey800)),
+            child: valueWidget,
           ),
         ],
       ),
