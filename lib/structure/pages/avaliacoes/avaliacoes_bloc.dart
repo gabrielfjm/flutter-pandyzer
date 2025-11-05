@@ -354,10 +354,19 @@ class AvaliacoesBloc extends Bloc<AvaliacoesEvent, AvaliacoesState> {
 
     // >>>>> Correção 1: usar 'evaluatorId:' <<<<<
     on<StartEvaluationEvent>((event, emit) async {
+      final previousState = state;
+      emit(StartEvaluationLoading(oldState: previousState));
       try {
         await AvaliacoesRepository.startEvaluation(
           evaluatorId: event.evaluatorUserId,
           evaluationId: event.evaluationId,
+        );
+        emit(
+          StartEvaluationSuccess(
+            evaluatorUserId: event.evaluatorUserId,
+            evaluationId: event.evaluationId,
+            oldState: previousState,
+          ),
         );
         add(LoadEvaluationDetailsEvent(event.evaluationId));
         add(LoadAvaliacoesEvent());
