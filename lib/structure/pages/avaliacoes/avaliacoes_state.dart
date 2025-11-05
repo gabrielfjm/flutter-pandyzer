@@ -67,15 +67,36 @@ class AvaliacaoCamposLoaded extends AvaliacoesState {
   );
 }
 
-class StartEvaluationLoading extends AvaliacoesState {}
+class StartEvaluationLoading extends AvaliacoesState {
+  StartEvaluationLoading({required AvaliacoesState oldState})
+      : super(
+          myEvaluations: oldState.myEvaluations,
+          communityEvaluations: oldState.communityEvaluations,
+          evaluation: oldState.evaluation,
+          dominios: oldState.dominios,
+          objectives: oldState.objectives,
+          evaluators: oldState.evaluators,
+          availableEvaluators: oldState.availableEvaluators,
+        );
+}
 
 class StartEvaluationSuccess extends AvaliacoesState {
-  final int evaluatorId;
+  final int evaluatorUserId;
   final int evaluationId;
+
   StartEvaluationSuccess({
-    required this.evaluatorId,
+    required this.evaluatorUserId,
     required this.evaluationId,
-  });
+    required AvaliacoesState oldState,
+  }) : super(
+          myEvaluations: oldState.myEvaluations,
+          communityEvaluations: oldState.communityEvaluations,
+          evaluation: oldState.evaluation,
+          dominios: oldState.dominios,
+          objectives: oldState.objectives,
+          evaluators: oldState.evaluators,
+          availableEvaluators: oldState.availableEvaluators,
+        );
 }
 
 class EvaluationDetailsLoaded extends AvaliacoesState {

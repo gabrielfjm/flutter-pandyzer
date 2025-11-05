@@ -123,6 +123,17 @@ class _AvaliacoesPageState extends State<AvaliacoesPage>
   }
 
   void _onChangeState(BuildContext context, AvaliacoesState state) {
+    if (state is StartEvaluationSuccess) {
+      NavigationManager().goTo(
+        ProblemaPage(
+          evaluationId: state.evaluationId,
+          evaluatorId: state.evaluatorUserId,
+          mode: ProblemaPageMode.edit,
+        ),
+      );
+      return;
+    }
+
     if (state is EvaluationDetailsLoaded) {
       _showDetailsModal(
         context,
@@ -237,18 +248,10 @@ class _AvaliacoesPageState extends State<AvaliacoesPage>
         confirmColor: AppColors.black,
         onConfirm: () {
           _bloc.add(StartEvaluationEvent(
-            evaluatorRecordId: evaluator!.id!,        // evaluator.currentUserAsEvaluator.id
-            evaluatorUserId: evaluator.user!.id!,    // evaluator.currentUserAsEvaluator.user.id
+            evaluatorRecordId: evaluator!.id!, // evaluator.currentUserAsEvaluator.id
+            evaluatorUserId: evaluator.user!.id!, // evaluator.currentUserAsEvaluator.user.id
             evaluationId: evaluation.id!,
           ));
-          // navega para edição dos problemas do próprio avaliador
-          NavigationManager().goTo(
-            ProblemaPage(
-              evaluationId: evaluation.id!,
-              evaluatorId: evaluatorUserId,
-              mode: ProblemaPageMode.edit,
-            ),
-          );
         },
       ),
     );
