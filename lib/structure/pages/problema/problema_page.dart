@@ -21,6 +21,7 @@ import 'package:flutter_pandyzer/structure/widgets/app_text_field.dart';
 import 'package:flutter_pandyzer/structure/widgets/app_toast.dart';
 import 'package:flutter_pandyzer/structure/widgets/chatbot_widget.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'problema_bloc.dart';
 
 // Enum para controlar o modo da página
@@ -76,6 +77,7 @@ class _ProblemaPageState extends State<ProblemaPage>
   final List<ChatMessage> _chatMessages = [];
   bool _isChatVisible = false;
   bool _isChatLoading = false;
+  bool _isChatAllowed = true;
 
   bool get _isReadOnly => widget.mode == ProblemaPageMode.view;
 
@@ -87,6 +89,7 @@ class _ProblemaPageState extends State<ProblemaPage>
       evaluationId: widget.evaluationId,
       evaluatorUserId: widget.evaluatorId, // id do USUÁRIO avaliador
     ));
+    _loadChatPermission();
 
     if (_chatMessages.isEmpty) {
       _chatMessages.add(ChatMessage(
@@ -121,6 +124,20 @@ class _ProblemaPageState extends State<ProblemaPage>
     setState(() {
       _chatMessages.add(ChatMessage(text: response, isUser: false));
       _isChatLoading = false;
+    });
+  }
+
+  Future<void> _loadChatPermission() async {
+    final prefs = await SharedPreferences.getInstance();
+    final storedTypeId = prefs.getString('userTypeId');
+    if (!mounted) return;
+
+    final allowed = storedTypeId != '3';
+    setState(() {
+      _isChatAllowed = allowed;
+      if (!allowed) {
+        _isChatVisible = false;
+      }
     });
   }
 
@@ -302,7 +319,7 @@ class _ProblemaPageState extends State<ProblemaPage>
                 AnimatedSize(
                   duration: const Duration(milliseconds: 300),
                   curve: Curves.easeInOut,
-                  child: _isChatVisible
+                  child: _isChatAllowed && _isChatVisible
                       ? ChatbotPanel(
                     messages: _chatMessages,
                     onSendMessage: _handleSendMessage,
@@ -320,7 +337,7 @@ class _ProblemaPageState extends State<ProblemaPage>
           },
         ),
       ),
-      floatingActionButton: !_isChatVisible && !_isReadOnly
+      floatingActionButton: !_isChatVisible && !_isReadOnly && _isChatAllowed
           ? FloatingActionButton(
         onPressed: () {
           setState(() {
