@@ -53,6 +53,12 @@ class _LoginPageState extends State<LoginPage> {
     if (state is LoginSuccesState) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('userId', state.usuario!.id.toString());
+      final userTypeId = state.usuario!.userType?.id;
+      if (userTypeId != null) {
+        await prefs.setString('userTypeId', userTypeId.toString());
+      } else {
+        await prefs.remove('userTypeId');
+      }
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const MainPage()),
             (route) => false,
